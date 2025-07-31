@@ -53,15 +53,15 @@ static void add_marked_intrusions(struct influence_data *q);
 /* Influence computed for the initial position, i.e. before making
  * some move.
  */
-struct influence_data initial_black_influence;
-struct influence_data initial_white_influence;
+struct _EMBEDDED_BSS influence_data initial_black_influence;
+struct _EMBEDDED_BSS influence_data initial_white_influence;
 
 /* Influence computed after some move has been made. */
-struct influence_data move_influence;
-struct influence_data followup_influence;
+struct _EMBEDDED_BSS influence_data move_influence;
+struct _EMBEDDED_BSS influence_data followup_influence;
 
 /* Influence used for estimation of escape potential. */
-static struct influence_data escape_influence;
+static struct _EMBEDDED_BSS influence_data escape_influence;
 
 /* Pointer to influence data used during pattern matching. */
 static struct influence_data *current_influence = NULL;

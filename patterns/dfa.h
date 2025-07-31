@@ -73,7 +73,7 @@ typedef struct state_rt
 typedef struct dfa_rt
 {
   /* File header. */
-  const char name[80];
+  _CONST_DECL char name[15];
 
   /* Transition graph. */
   const state_rt_t *states;

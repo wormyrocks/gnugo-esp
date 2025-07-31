@@ -34,9 +34,9 @@
  */
 
 int thrashing_dragon = NO_MOVE; /* Dead opponent's dragon trying to live. */
-signed char thrashing_stone[BOARDMAX]; /* All thrashing stones. */
+signed char _EMBEDDED_BSS thrashing_stone[BOARDMAX]; /* All thrashing stones. */
 
-float potential_moves[BOARDMAX];
+float _EMBEDDED_BSS potential_moves[BOARDMAX];
 
 /* Used by reading. */
 int depth;              /* deep reading cut off */
@@ -141,29 +141,29 @@ int   best_moves[10];
 float white_score;
 float black_score;
 
-int close_worms[BOARDMAX][4];
-int number_close_worms[BOARDMAX];
-int close_black_worms[BOARDMAX][4];
-int number_close_black_worms[BOARDMAX];
-int close_white_worms[BOARDMAX][4];
-int number_close_white_worms[BOARDMAX];
+int _EMBEDDED_BSS close_worms[BOARDMAX][4];
+int _EMBEDDED_BSS number_close_worms[BOARDMAX];
+int _EMBEDDED_BSS close_black_worms[BOARDMAX][4];
+int _EMBEDDED_BSS number_close_black_worms[BOARDMAX];
+int _EMBEDDED_BSS close_white_worms[BOARDMAX][4];
+int _EMBEDDED_BSS number_close_white_worms[BOARDMAX];
 
-int false_eye_territory[BOARDMAX];
-int forced_backfilling_moves[BOARDMAX];
+int _EMBEDDED_BSS false_eye_territory[BOARDMAX];
+int _EMBEDDED_BSS forced_backfilling_moves[BOARDMAX];
 
-struct worm_data      worm[BOARDMAX];
-struct dragon_data    dragon[BOARDMAX];
+struct _EMBEDDED_BSS worm_data      worm[BOARDMAX];
+struct _EMBEDDED_BSS  dragon_data    dragon[BOARDMAX];
 int                   number_of_dragons;
-struct dragon_data2   *dragon2 = NULL;
-struct half_eye_data  half_eye[BOARDMAX];
-struct eye_data       black_eye[BOARDMAX];
-struct eye_data       white_eye[BOARDMAX];
-struct vital_eye_points black_vital_points[BOARDMAX];
-struct vital_eye_points white_vital_points[BOARDMAX];
-struct surround_data  surroundings[MAX_SURROUND];
+struct _EMBEDDED_BSS  dragon_data2   *dragon2 = NULL;
+struct _EMBEDDED_BSS  half_eye_data  half_eye[BOARDMAX];
+struct _EMBEDDED_BSS eye_data       black_eye[BOARDMAX];
+struct _EMBEDDED_BSS eye_data       white_eye[BOARDMAX];
+struct _EMBEDDED_BSS vital_eye_points black_vital_points[BOARDMAX];
+struct _EMBEDDED_BSS vital_eye_points white_vital_points[BOARDMAX];
+struct _EMBEDDED_BSS surround_data  surroundings[MAX_SURROUND];
 int                   surround_pointer;
 
-int cutting_points[BOARDMAX];
+int _EMBEDDED_BSS cutting_points[BOARDMAX];
 
 double slowest_time = 0.0;
 int    slowest_move = NO_MOVE;

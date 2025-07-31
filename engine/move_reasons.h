@@ -146,17 +146,17 @@ struct move_data {
 #define MAX_ATTACK_THREATS	6
 
 
-extern struct move_data move[BOARDMAX];
-extern struct move_reason move_reasons[MAX_MOVE_REASONS];
+extern _EMBEDDED_BSS struct move_data move[BOARDMAX];
+extern _EMBEDDED_BSS struct move_reason move_reasons[MAX_MOVE_REASONS];
 extern int next_reason;
 
 /* Connections */
-extern int conn_worm1[MAX_CONNECTIONS];
-extern int conn_worm2[MAX_CONNECTIONS];
+extern _EMBEDDED_BSS int conn_worm1[MAX_CONNECTIONS];
+extern _EMBEDDED_BSS int conn_worm2[MAX_CONNECTIONS];
 extern int next_connection;
 
-extern int semeai_target1[MAX_POTENTIAL_SEMEAI];
-extern int semeai_target2[MAX_POTENTIAL_SEMEAI];
+extern _EMBEDDED_BSS int semeai_target1[MAX_POTENTIAL_SEMEAI];
+extern _EMBEDDED_BSS int semeai_target2[MAX_POTENTIAL_SEMEAI];
 
 /* Unordered sets (currently pairs) of move reasons / targets */
 typedef struct {

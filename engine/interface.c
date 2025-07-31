@@ -52,8 +52,9 @@ init_gnugo(float memory, unsigned int seed)
 
   transformation_init();
   dfa_match_init();
+#ifndef DISABLE_MONTE_CARLO
   choose_mc_patterns(NULL);
-
+#endif
   clear_approxlib_cache();
   clear_accuratelib_cache();
 }

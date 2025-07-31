@@ -1782,7 +1782,7 @@ write_elements(FILE *outfile)
   /* sort the elements so that least-likely elements are tested first. */
   gg_sort(elements, el, sizeof(struct patval_b), compare_elements);
 
-  fprintf(outfile, "static struct patval %s%d[] = {", prefix, patno);
+  fprintf(outfile, "static " _CONST_DECLS " struct patval %s%d[] = {", prefix, patno);
 
   for (node = 0; node < el; node++) {
     int x = elements[node].x;
@@ -2219,7 +2219,7 @@ write_attributes(FILE *outfile)
 {
   int k;
 
-  fprintf(outfile, "static struct pattern_attribute attributes[] = {\n");
+  fprintf(outfile, "static " _CONST_DECLS " struct pattern_attribute attributes[] = {\n");
   fprintf(outfile, "#ifdef HAVE_TRANSPARENT_UNIONS\n");
 
   for (k = 0; k < num_attributes; k++) {
@@ -2249,6 +2249,56 @@ write_attributes(FILE *outfile)
   fprintf(outfile, "\n#endif\n};\n\n");
 }
 
+#ifdef FIXED_BOARD_SIZE
+// Copied out of matchpat.c
+static void fixup_patterns_for_board_size(struct pattern *pattern)
+{
+  static int board_size = FIXED_BOARD_SIZE;
+  for (; pattern->patn; ++pattern)
+    if (pattern->edge_constraints != 0) {
+
+      /* If the patterns have been fixed up for a different board size
+       * earlier, we need to undo the modifications that were done
+       * below before we do them anew. The first time this function is
+       * called, this step is effectively a no-op.
+       */
+      
+      if (pattern->edge_constraints & NORTH_EDGE)
+	pattern->maxi = pattern->mini + pattern->height;
+	
+      if (pattern->edge_constraints & SOUTH_EDGE)
+	pattern->mini = pattern->maxi - pattern->height;
+	
+      if (pattern->edge_constraints & WEST_EDGE)
+	pattern->maxj = pattern->minj + pattern->width;
+      
+      if (pattern->edge_constraints & EAST_EDGE)
+	pattern->minj = pattern->maxj - pattern->width;
+      
+      /* we extend the pattern in the direction opposite the constraint,
+       * such that maxi (+ve) - mini (-ve) = board_size-1
+       * Note : the pattern may be wider than the board, so
+       * we need to be a bit careful !
+       */
+      
+      if (pattern->edge_constraints & NORTH_EDGE)
+	if (pattern->maxi < (board_size-1) + pattern->mini)
+	  pattern->maxi = (board_size-1) + pattern->mini;
+      
+      if (pattern->edge_constraints & SOUTH_EDGE)
+	if (pattern->mini > pattern->maxi - (board_size-1))
+	  pattern->mini = pattern->maxi - (board_size-1);
+      
+      if (pattern->edge_constraints & WEST_EDGE)
+	if (pattern->maxj <  (board_size-1) + pattern->minj)
+	  pattern->maxj = (board_size-1) + pattern->minj;
+      
+      if (pattern->edge_constraints & EAST_EDGE)
+	if (pattern->minj > pattern->maxj - (board_size-1))
+	  pattern->minj = pattern->maxj - (board_size-1);
+    }
+}
+#endif
 
 /* Sort and write out the patterns. */
 static void
@@ -2258,12 +2308,16 @@ write_patterns(FILE *outfile)
 
   /* Write out the patterns. */
   if (database_type == DB_CORNER)
-    fprintf(outfile, "static struct corner_pattern %s[] = {\n", prefix);
+    fprintf(outfile, "static " _CONST_DECLS " struct corner_pattern %s[] = {\n", prefix);
   else
-    fprintf(outfile, "static struct pattern %s[] = {\n", prefix);
+    fprintf(outfile, "static " _CONST_DECLS " struct pattern %s[] = {\n", prefix);
 
   for (j = 0; j < patno; ++j) {
     struct pattern *p = pattern + j;
+
+#ifdef FIXED_BOARD_SIZE
+    fixup_patterns_for_board_size(p);
+#endif
 
     if (database_type == DB_CORNER) {
       fprintf(outfile, "  {%d,%d,0x%x,\"%s\",",
@@ -2383,7 +2437,11 @@ write_pattern_db(FILE *outfile)
   /* Write out the pattern database. */
   fprintf(outfile, "\n");
   fprintf(outfile, "struct pattern_db %s_db = {\n", prefix);
-  fprintf(outfile, "  -1,\n");  /* fixed_for_size */
+#ifdef FIXED_BOARD_SIZE
+  fprintf(outfile, "  %d,\n", FIXED_BOARD_SIZE); 
+#else
+  fprintf(outfile, "  -1,\n");
+#endif
   fprintf(outfile, "  %d,\n", fixed_anchor);
   fprintf(outfile, "  %s\n", prefix);
   if (database_type == DB_DFA)
@@ -2921,9 +2979,9 @@ main(int argc, char *argv[])
   if (database_type != OPTIMIZE_DFA) {
     /* Forward declaration, which autohelpers might need. */
     if (database_type != DB_CORNER)
-      fprintf(output_FILE, "static struct pattern %s[%d];\n\n", prefix, patno + 1);
+      fprintf(output_FILE, "static " _CONST_DECLS " struct pattern %s[%d];\n\n", prefix, patno + 1);
     else
-      fprintf(output_FILE, "static struct corner_pattern %s[%d];\n\n", prefix, patno + 1);
+      fprintf(output_FILE, "static " _CONST_DECLS " struct corner_pattern %s[%d];\n\n", prefix, patno + 1);
 
     /* Write the autohelper code. */
     fprintf(output_FILE, "%s", autohelper_code);
@@ -2961,7 +3019,7 @@ main(int argc, char *argv[])
       fprintf(stderr, "---------------------------\n");
 
       corner_pack_variations(corner_root.child, 0);
-      fprintf(output_FILE, "static struct corner_variation %s_variations[] = {\n",
+      fprintf(output_FILE, "static " _CONST_DECLS " struct corner_variation %s_variations[] = {\n",
 	      prefix);
       corner_write_variations(corner_root.child, output_FILE);
 

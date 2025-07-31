@@ -63,7 +63,7 @@ struct eye_graph {
   struct eyevalue value;          /* eye value                             */
 };
 
-extern struct eye_graph graphs[];
+extern _CONST_DECL struct eye_graph graphs[];
 
 /*
  * Local Variables:

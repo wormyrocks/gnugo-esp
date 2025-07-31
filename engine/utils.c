@@ -1969,6 +1969,7 @@ showstats()
 int
 choose_mc_patterns(char *name)
 {
+  #ifndef DISABLE_MONTE_CARLO
   int k;
   for (k = 0; mc_pattern_databases[k].name; k++) {
     if (!name || strcmp(name, mc_pattern_databases[k].name) == 0) {
@@ -1976,7 +1977,8 @@ choose_mc_patterns(char *name)
       return 1;
     }
   }
-
+  #endif
+  
   return 0;
 }
 
@@ -1984,6 +1986,7 @@ choose_mc_patterns(char *name)
 void
 list_mc_patterns(void)
 {
+  #ifndef DISABLE_MONTE_CARLO
   int k;
   printf("Available builtin Monte Carlo local patterns:\n\n");
   for (k = 0; mc_pattern_databases[k].name; k++) {
@@ -1994,6 +1997,7 @@ list_mc_patterns(void)
   }
   printf("\nUse \"--mc-patterns name\" to choose one of these.\n");
   printf("Use \"--mc-load-patterns filename\" to directly load a pattern database.\n");
+  #endif
 }
 
 /*

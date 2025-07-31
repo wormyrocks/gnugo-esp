@@ -98,7 +98,7 @@ uncompress_fuseki boardsize filename db\n\
 #include \"patterns.h\"\n\n\
 "
 
-#define C_HEADER "struct fullboard_pattern fuseki%d[] = {\n"
+#define C_HEADER _CONST_DECLS " struct fullboard_pattern fuseki%d[] = {\n"
 #define C_FOOTER "};\n"
   
 static const char *const db_output_strings[3] =

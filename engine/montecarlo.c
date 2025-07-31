@@ -1,3 +1,4 @@
+#ifndef DISABLE_MONTE_CARLO
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\
  * This is GNU Go, a Go program. Contact gnugo@gnu.org, or see       *
  * http://www.gnu.org/software/gnugo/ for more information.          *
@@ -2260,3 +2261,4 @@ uct_genmove(int color, int *move, int *forbidden_moves, int *allowed_moves,
  * c-basic-offset: 2
  * End:
  */
+#endif

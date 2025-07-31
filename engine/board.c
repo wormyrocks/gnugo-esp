@@ -135,28 +135,28 @@ struct vertex_stack_entry {
 
 
 /* Main array of string information. */
-static struct string_data string[MAX_STRINGS];
-static struct string_liberties_data string_libs[MAX_STRINGS];
-static struct string_neighbors_data string_neighbors[MAX_STRINGS];
+static _EMBEDDED_BSS struct string_data string[MAX_STRINGS];
+static _EMBEDDED_BSS struct string_liberties_data string_libs[MAX_STRINGS];
+static _EMBEDDED_BSS struct string_neighbors_data string_neighbors[MAX_STRINGS];
 
 /* Stacks and stack pointers. */
-static struct change_stack_entry change_stack[STACK_SIZE];
+static _EMBEDDED_BSS struct change_stack_entry change_stack[STACK_SIZE];
 static struct change_stack_entry *change_stack_pointer;
 
-static struct vertex_stack_entry vertex_stack[STACK_SIZE];
+static _EMBEDDED_BSS struct vertex_stack_entry vertex_stack[STACK_SIZE];
 static struct vertex_stack_entry *vertex_stack_pointer;
 
 
 /* Index into list of strings. The index is only valid if there is a
  * stone at the vertex.
  */
-static int string_number[BOARDMAX];
+static _EMBEDDED_BSS int string_number[BOARDMAX];
 
 
 /* The stones in a string are linked together in a cyclic list. 
  * These are the coordinates to the next stone in the string.
  */
-static int next_stone[BOARDMAX];
+static _EMBEDDED_BSS int next_stone[BOARDMAX];
 
 
 /* ---------------------------------------------------------------- */

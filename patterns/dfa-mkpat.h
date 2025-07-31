@@ -65,7 +65,7 @@ typedef struct state
 typedef struct dfa
 {
   /* File header. */
-  char name[80];
+  char name[15];
 
   /* Transition graph. */
   state_t *states;

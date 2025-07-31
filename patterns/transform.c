@@ -27,7 +27,7 @@
 #include <memory.h>
 
 /* Array for use by TRANSFORM() macro. */
-int transformation[MAX_OFFSET][8];
+int _EMBEDDED_BSS transformation[MAX_OFFSET][8];
 
 /* Matrix array for use by TRANSFORM2() macro. */
 const int transformation2[8][2][2] = {
@@ -78,7 +78,7 @@ transformation_init(void)
   }
 }
 /* Spiral orders for DFA matching and building. */
-int spiral[DFA_MAX_ORDER][8];
+int _EMBEDDED_BSS spiral[DFA_MAX_ORDER][8];
 
 /* The spiral order is the way we scan the board, we begin on the
  * anchor and we progressively scan all its neigbouring intersections,

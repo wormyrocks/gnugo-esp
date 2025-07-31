@@ -497,11 +497,13 @@ int aftermath_genmove(int color, int do_capture_dead_stones,
 		      int allowed_moves[BOARDMAX]);
 enum dragon_status aftermath_final_status(int color, int pos);
 
+#ifndef DISABLE_MONTE_CARLO
 int mc_get_size_of_pattern_values_table(void);
 int mc_load_patterns_from_db(const char *filename, unsigned int *values);
 void mc_init_patterns(const unsigned int *values);
 int choose_mc_patterns(char *name);
 void list_mc_patterns(void);
+#endif
 
 void uct_genmove(int color, int *move, int *forbidden_moves,
 		 int *allowed_moves, int nodes, float *move_values,
@@ -611,10 +613,10 @@ struct moyo_data
  * in influence.c, however!
  */
 struct influence_data;
-extern struct influence_data initial_black_influence;
-extern struct influence_data initial_white_influence;
-extern struct influence_data move_influence;
-extern struct influence_data followup_influence;
+extern _EMBEDDED_BSS struct influence_data initial_black_influence;
+extern _EMBEDDED_BSS struct influence_data initial_white_influence;
+extern _EMBEDDED_BSS struct influence_data move_influence;
+extern _EMBEDDED_BSS struct influence_data followup_influence;
 
 #define INITIAL_INFLUENCE(color) ((color) == WHITE ? \
 				    &initial_white_influence \
@@ -854,11 +856,11 @@ struct worm_data {
   int defense_threat_codes[MAX_TACTICAL_POINTS];
 };
 
-extern struct worm_data worm[BOARDMAX];
+extern _EMBEDDED_BSS struct worm_data worm[BOARDMAX];
 
 /* Unconditionally meaningless moves. */
-int meaningless_black_moves[BOARDMAX];
-int meaningless_white_moves[BOARDMAX];
+extern int meaningless_black_moves[BOARDMAX];
+extern int meaningless_white_moves[BOARDMAX];
 
 /* Surround cache (see surround.c) */
 
@@ -869,7 +871,7 @@ struct surround_data {
   signed char surround_map[BOARDMAX]; /* surround map                     */
 };
 
-extern struct surround_data surroundings[MAX_SURROUND];
+extern _EMBEDDED_BSS struct surround_data surroundings[MAX_SURROUND];
 extern int surround_pointer;
 
 /*
@@ -887,7 +889,7 @@ struct dragon_data {
   enum dragon_status status;       /* best trusted status                    */
 };
 
-extern struct dragon_data dragon[BOARDMAX];
+extern _EMBEDDED_BSS struct dragon_data dragon[BOARDMAX];
 
 /* Supplementary data concerning a dragon. Only one copy is stored per
  * dragon in the dragon2 array.
@@ -1004,17 +1006,17 @@ struct vital_eye_points {
   int defense_points[MAX_EYE_ATTACKS];
 };
 
-extern struct vital_eye_points black_vital_points[BOARDMAX];
-extern struct vital_eye_points white_vital_points[BOARDMAX];
+extern _EMBEDDED_BSS struct vital_eye_points black_vital_points[BOARDMAX];
+extern _EMBEDDED_BSS struct vital_eye_points white_vital_points[BOARDMAX];
 
-extern struct eye_data white_eye[BOARDMAX];
-extern struct eye_data black_eye[BOARDMAX];
+extern _EMBEDDED_BSS struct eye_data white_eye[BOARDMAX];
+extern _EMBEDDED_BSS struct eye_data black_eye[BOARDMAX];
 
 /* Array with the information which was previously stored in the cut
  * field and in the INHIBIT_CONNECTION bit of the type field in struct
  * eye_data.
  */
-extern int cutting_points[BOARDMAX];
+extern _EMBEDDED_BSS int cutting_points[BOARDMAX];
 
 /* The following declarations have to be postponed until after the
  * definition of struct eye_data or struct half_eye_data.

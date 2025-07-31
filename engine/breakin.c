@@ -382,7 +382,7 @@ break_in_goal(int color_to_move, int owner, signed char goal[BOARDMAX],
   }
 
   /* Finally, try the break-ins. */
-  memset(non_territory, 0, BOARDMAX);
+  memset(non_territory, 0, BOARDMAX*sizeof(int));
   for (k = 0; k < candidates; k++) {
     int move = break_in_goal_from_str(candidate_strings[k], goal,
   		                     &num_non_territory, non_territory,

@@ -231,7 +231,7 @@ struct pattern_attribute {
  * Each pattern as a whole is compiled to an instance of this structure.
  */
 struct pattern {
-  struct patval *patn;  /* array of elements */
+  _CONST_DECL struct patval *patn;  /* array of elements */
   int patlen;           /* number of elements */
   int trfno;            /* number of transformations (rotations and reflections) */
   const char *name;     /* short description of pattern (optional) */
@@ -257,7 +257,7 @@ struct pattern {
   float value;
 
   /* Pattern attributes like shape, followup etc. */
-  struct pattern_attribute *attributes;
+  _CONST_DECL struct pattern_attribute *attributes;
 
   int autohelper_flag;  /* whether autohelper has constraint and/or action */
   pattern_helper_fn_ptr helper;  /* helper function, or NULL */
@@ -279,8 +279,8 @@ struct pattern {
 struct pattern_db {
   int fixed_for_size;
   const int fixed_anchor;
-  struct pattern *patterns;
-  struct dfa_rt *pdfa;
+  _CONST_DECL struct pattern *patterns;
+  _CONST_DECL struct dfa_rt *pdfa;
 };
 
 
@@ -353,11 +353,9 @@ extern struct pattern_db oracle_db;
 
 extern struct corner_db joseki_db;
 
-extern struct fullboard_pattern fuseki19[];
-extern struct fullboard_pattern fuseki13[];
-extern struct fullboard_pattern fuseki9[];
-
-extern struct mc_pattern_database mc_pattern_databases[];
+extern _CONST_DECL struct fullboard_pattern fuseki19[];
+extern _CONST_DECL struct fullboard_pattern fuseki13[];
+extern _CONST_DECL struct fullboard_pattern fuseki9[];
 
 struct corner_db;
 struct corner_variation;
@@ -368,7 +366,7 @@ struct corner_db {
   int max_height;	/* ... largest possible height of database patterns. */
 
   unsigned char num_top_variations; /* Number of top level variations. */
-  struct corner_variation *top_variations;
+  _CONST_DECL struct corner_variation *top_variations;
 };
 
 struct corner_variation {
@@ -379,9 +377,9 @@ struct corner_variation {
   unsigned char num_stones; /* Number of stones in the `move_offset' rectangle. */
 
   unsigned char num_variations; /* Number of subvariations. */
-  struct corner_variation *variations; /* Pointer to subvariation array. */
+  _CONST_DECL struct corner_variation *variations; /* Pointer to subvariation array. */
 
-  struct corner_pattern *pattern; /* Address of matched pattern (if any). */
+  _CONST_DECL struct corner_pattern *pattern; /* Address of matched pattern (if any). */
 };
 
 struct corner_pattern {
@@ -392,7 +390,7 @@ struct corner_pattern {
   const char *name;	/* Pattern name (optional). */
 
   /* Pattern attributes like shape (the only one used currently). */
-  struct pattern_attribute *attributes;
+  _CONST_DECL struct pattern_attribute *attributes;
 
   int autohelper_flag;	/* Whether autohelper has constraint and/or action. */
   autohelper_fn_ptr autohelper; /* Automatically generated helper (or NULL). */

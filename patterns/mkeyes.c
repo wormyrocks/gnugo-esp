@@ -287,7 +287,7 @@ main(void)
 	}
       }
       
-      printf("static struct eye_vertex eye%d[] = {\n", eye_number[patno]);
+      printf("static " _CONST_DECLS " struct eye_vertex eye%d[] = {\n", eye_number[patno]);
       
       for (l = 0; l < esize[patno]; l++) {
 	int ni[4];
@@ -376,7 +376,7 @@ main(void)
   }
 
   
-  printf("\nstruct eye_graph graphs[] = {\n");
+  printf("\n" _CONST_DECLS " struct eye_graph graphs[] = {\n");
   for (l = 0; l < patno; l++) {
 
     printf("  {eye%d, %d, %d, %d, %d, %d, %d, {%d, %d, %d, %d}}",

@@ -111,6 +111,9 @@ static char hspots[MAX_BOARD][MAX_BOARD];
 /*
  * Mark the handicap spots on the board.
  */
+#ifdef FIXED_BOARD_SIZE
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
 
 static void
 set_handicap_spots(int boardsize)
@@ -183,6 +186,9 @@ set_handicap_spots(int boardsize)
   return;
 }
 
+#ifdef FIXED_BOARD_SIZE
+#pragma GCC diagnostic pop
+#endif
 
 /*
  * Display the board position when playing in ASCII.

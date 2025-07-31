@@ -103,9 +103,14 @@ typedef unsigned char Intersection;
 
 
 #define MIN_BOARD          1       /* Minimum supported board size.   */
-#define MAX_BOARD         19       /* Maximum supported board size.   */
 #define MAX_HANDICAP       9       /* Maximum supported handicap.     */
 #define MAX_MOVE_HISTORY 500       /* Max number of moves remembered. */
+
+#ifdef FIXED_BOARD_SIZE
+#define MAX_BOARD FIXED_BOARD_SIZE
+#else
+#define MAX_BOARD 19
+#endif
 
 #define DEFAULT_BOARD_SIZE MAX_BOARD
 

@@ -119,6 +119,25 @@
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #cmakedefine TIME_WITH_SYS_TIME 1
 
+#cmakedefine DISABLE_MONTE_CARLO 1
+
+#cmakedefine FIXED_BOARD_SIZE ${FIXED_BOARD_SIZE}
+
+#ifdef ESP_PLATFORM
+#include "esp_attr.h"
+#define _EMBEDDED_BSS EXT_RAM_BSS_ATTR
+#else
+#define _EMBEDDED_BSS
+#endif
+
+#ifdef FIXED_BOARD_SIZE
+#define _CONST_DECL const
+#define _CONST_DECLS "const"
+#else 
+#define _CONST_DECL
+#define _CONST_DECLS
+#endif
+
 /* Define special valgrind macros. */
 #undef USE_VALGRIND
 
