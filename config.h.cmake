@@ -125,9 +125,13 @@
 
 #ifdef ESP_PLATFORM
 #include "esp_attr.h"
+#include "esp_random.h"
+#undef HAVE_TIMES
 #define _EMBEDDED_BSS EXT_RAM_BSS_ATTR
+#define _EMBEDDED_TCM TCM_IRAM_ATTR
 #else
 #define _EMBEDDED_BSS
+#define _EMBEDDED_TCM
 #endif
 
 #ifdef FIXED_BOARD_SIZE

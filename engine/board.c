@@ -1619,7 +1619,7 @@ findlib(int str, int maxlib, int *libs)
  * Note well, that it relies on incremental data.
  */
 
-int
+int _EMBEDDED_TCM
 fastlib(int pos, int color, int ignore_captures)
 {
   int ally1 = -1;

@@ -53,7 +53,7 @@ struct eye_vertex {
  */
 
 struct eye_graph {
-  struct eye_vertex *vertex;
+  _CONST_DECL struct eye_vertex *vertex;
   int patnum;			  /* number of pattern			   */
   int esize;                      /* number of vertices                    */
   int msize;                      /* number of marginal vertices           */

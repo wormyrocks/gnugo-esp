@@ -654,6 +654,7 @@ main(int argc, char *argv[])
 	mc_games_per_level = atoi(gg_optarg);
 	break;
 
+#ifndef DISABLE_MONTE_CARLO
       case OPT_MC_PATTERNS:
 	if (strlen(gg_optarg) >= sizeof(mc_pattern_name)) {
 	  fprintf(stderr, "Too long name given as value to --mc-patterns option.\n");
@@ -674,6 +675,7 @@ main(int argc, char *argv[])
 	}
 	strcpy(mc_pattern_filename, gg_optarg);
 	break;
+#endif
 
       case OPT_MODE: 
 	if (strcmp(gg_optarg, "ascii") == 0)
@@ -1017,6 +1019,7 @@ main(int argc, char *argv[])
   /* Initialize the GNU Go engine. */
   init_gnugo(memory, seed);
 
+#ifndef DISABLE_MONTE_CARLO
   /* Load Monte Carlo patterns if one has been specified. Either
    * choose one of the compiled in ones or load directly from a
    * database file.
@@ -1033,6 +1036,7 @@ main(int argc, char *argv[])
       return EXIT_FAILURE;
     }
   }
+#endif
 
   /* Read the infile if there is one. Also play up the position. */
   if (infilename) {

@@ -1016,7 +1016,7 @@ extern _EMBEDDED_BSS struct eye_data black_eye[BOARDMAX];
  * field and in the INHIBIT_CONNECTION bit of the type field in struct
  * eye_data.
  */
-extern _EMBEDDED_BSS int cutting_points[BOARDMAX];
+extern int cutting_points[BOARDMAX];
 
 /* The following declarations have to be postponed until after the
  * definition of struct eye_data or struct half_eye_data.

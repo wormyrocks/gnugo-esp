@@ -19,7 +19,6 @@ idf_component_register(
     EXCLUDE_SRCS
     "interface/main.c"
     "interface/play_gtp.c"
-    "interface/play_solo.c"
     "interface/play_test.c"
     "engine/montecarlo.c"
     "patterns/mkpat.c"
@@ -73,6 +72,7 @@ component_compile_options(
     -Wno-expansion-to-defined
 )
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+# times.h is bad in picolibc
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
                ${BUILD_DIR}/config.h)
 # # Run the pattern generators if not found
@@ -80,7 +80,7 @@ add_custom_command(OUTPUT patterns/patterns.c
     # Call CMake again directly - ugly but necessary because we need to
     # build the pattern generators for target architecture
     WORKING_DIRECTORY ${BUILD_DIR}
-    COMMAND ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=1 -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR}
+    COMMAND ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=1 -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
     COMMAND ${CMAKE_COMMAND} --build .build_patterns -t patterns -j
     COMMAND ${CMAKE_COMMAND} -E copy .build_patterns/patterns/*.c ${CMAKE_CURRENT_SOURCE_DIR}/patterns
     COMMENT "Generated pattern database."

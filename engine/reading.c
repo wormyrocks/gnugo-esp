@@ -1407,7 +1407,7 @@ fast_defense(int str, int liberties, int *libs, int *move)
  * if it can get 5 liberties.
  * */
 
-static int
+static int _EMBEDDED_TCM
 defend1(int str, int *move)
 {
   int color = board[str];
@@ -1490,7 +1490,7 @@ defend1(int str, int *move)
  * *move returns the move to save the stones.
  */
 
-static int 
+static int
 defend2(int str, int *move)
 {
   int color, other;
@@ -1633,7 +1633,7 @@ defend2(int str, int *move)
  * it returns true and the saving move in *move.
  */
 
-static int 
+static int
 defend3(int str, int *move)
 {
   int color;
@@ -2783,7 +2783,7 @@ propose_edge_moves(int str, int *libs, int liberties,
 /* Like attack. If the opponent is komaster reading functions will not try
  * to take ko.
  */
-static int 
+static int
 do_attack(int str, int *move)
 {
   int color = board[str];
@@ -2909,7 +2909,7 @@ do_attack(int str, int *move)
  * caching the result.
  */
 
-static int
+static int _EMBEDDED_TCM
 attack1(int str, int *move)
 {
   int color = board[str];
@@ -3077,7 +3077,7 @@ attack1(int str, int *move)
  * See the comment before defend1 about ladders and reading depth.
  */
 
-static int 
+static int
 attack2(int str, int *move)
 {
   int color = board[str];
@@ -3261,7 +3261,7 @@ attack2(int str, int *move)
  * attack succeed.
  */
 
-static int 
+static int _EMBEDDED_TCM
 attack3(int str, int *move)
 {
   int color = board[str];
