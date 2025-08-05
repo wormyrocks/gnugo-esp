@@ -1318,7 +1318,7 @@ dfa_node_new(dfa_graph *graph)
 /* This is a hash table used to quickly find a DFA node using a linked list
  * of its attributes as a key.
  */
-static dfa_hash_entry *dfa_hash_table[DFA_HASH_TABLE_SIZE];
+static dfa_hash_entry _EMBEDDED_BSS *dfa_hash_table[DFA_HASH_TABLE_SIZE];
 static dfa_hash_block *dfa_hash_last_block = NULL;
 static int dfa_hash_allocated;
 
