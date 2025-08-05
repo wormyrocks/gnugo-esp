@@ -92,7 +92,10 @@ struct vertex_stack_entry {
  * exceeds 40. But since we have no way to recover from running out of
  * stack space, we allocate with a substantial safety margin.
  */
-#define STACK_SIZE 80 * MAXSTACK
+#ifndef CONFIG_STACK_SIZE
+#define CONFIG_STACK_SIZE 80
+#endif
+#define STACK_SIZE (CONFIG_STACK_SIZE * MAXSTACK)
 
 
 #define CLEAR_STACKS() do { \
@@ -135,7 +138,7 @@ struct vertex_stack_entry {
 
 
 /* Main array of string information. */
-static struct string_data _EMBEDDED_BSS string[MAX_STRINGS];
+static struct string_data _EMBEDDED_BSS_SMALL string[MAX_STRINGS];
 static struct string_liberties_data _EMBEDDED_BSS string_libs[MAX_STRINGS];
 static struct string_neighbors_data _EMBEDDED_BSS string_neighbors[MAX_STRINGS];
 
@@ -150,7 +153,7 @@ static struct vertex_stack_entry *vertex_stack_pointer;
 /* Index into list of strings. The index is only valid if there is a
  * stone at the vertex.
  */
-static int _EMBEDDED_BSS string_number[BOARDMAX];
+static int _EMBEDDED_BSS_SMALL string_number[BOARDMAX];
 
 
 /* The stones in a string are linked together in a cyclic list. 

@@ -497,7 +497,7 @@ int aftermath_genmove(int color, int do_capture_dead_stones,
 		      int allowed_moves[BOARDMAX]);
 enum dragon_status aftermath_final_status(int color, int pos);
 
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
 int mc_get_size_of_pattern_values_table(void);
 int mc_load_patterns_from_db(const char *filename, unsigned int *values);
 void mc_init_patterns(const unsigned int *values);

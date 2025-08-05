@@ -34,9 +34,9 @@
  */
 
 int thrashing_dragon = NO_MOVE; /* Dead opponent's dragon trying to live. */
-signed char _EMBEDDED_BSS thrashing_stone[BOARDMAX]; /* All thrashing stones. */
+signed char _EMBEDDED_BSS_SMALL thrashing_stone[BOARDMAX]; /* All thrashing stones. */
 
-float _EMBEDDED_BSS potential_moves[BOARDMAX];
+float _EMBEDDED_BSS_SMALL potential_moves[BOARDMAX];
 
 /* Used by reading. */
 int depth;              /* deep reading cut off */
@@ -141,15 +141,15 @@ int   best_moves[10];
 float white_score;
 float black_score;
 
-int _EMBEDDED_BSS close_worms[BOARDMAX][4];
-int _EMBEDDED_BSS number_close_worms[BOARDMAX];
-int _EMBEDDED_BSS close_black_worms[BOARDMAX][4];
-int _EMBEDDED_BSS number_close_black_worms[BOARDMAX];
-int _EMBEDDED_BSS close_white_worms[BOARDMAX][4];
-int _EMBEDDED_BSS number_close_white_worms[BOARDMAX];
+int _EMBEDDED_BSS_SMALL close_worms[BOARDMAX][4];
+int _EMBEDDED_BSS_SMALL number_close_worms[BOARDMAX];
+int _EMBEDDED_BSS_SMALL close_black_worms[BOARDMAX][4];
+int _EMBEDDED_BSS_SMALL number_close_black_worms[BOARDMAX];
+int _EMBEDDED_BSS_SMALL close_white_worms[BOARDMAX][4];
+int _EMBEDDED_BSS_SMALL number_close_white_worms[BOARDMAX];
 
 int _EMBEDDED_BSS false_eye_territory[BOARDMAX];
-int _EMBEDDED_BSS forced_backfilling_moves[BOARDMAX];
+int _EMBEDDED_BSS_SMALL forced_backfilling_moves[BOARDMAX];
 
 struct worm_data     _EMBEDDED_BSS worm[BOARDMAX];
 struct  dragon_data   _EMBEDDED_BSS dragon[BOARDMAX];
@@ -160,10 +160,10 @@ struct  eye_data      _EMBEDDED_BSS black_eye[BOARDMAX];
 struct  eye_data      _EMBEDDED_BSS white_eye[BOARDMAX];
 struct  vital_eye_points  _EMBEDDED_BSS black_vital_points[BOARDMAX];
 struct  vital_eye_points _EMBEDDED_BSS white_vital_points[BOARDMAX];
-struct  surround_data  _EMBEDDED_BSS surroundings[MAX_SURROUND];
+struct  surround_data _EMBEDDED_BSS_SMALL surroundings[MAX_SURROUND];
 int                   surround_pointer;
 
-int _EMBEDDED_BSS cutting_points[BOARDMAX];
+int _EMBEDDED_BSS_SMALL cutting_points[BOARDMAX];
 
 double slowest_time = 0.0;
 int    slowest_move = NO_MOVE;

@@ -2315,9 +2315,6 @@ write_patterns(FILE *outfile)
   for (j = 0; j < patno; ++j) {
     struct pattern *p = pattern + j;
 
-#ifdef FIXED_BOARD_SIZE
-    fixup_patterns_for_board_size(p);
-#endif
 
     if (database_type == DB_CORNER) {
       fprintf(outfile, "  {%d,%d,0x%x,\"%s\",",
@@ -2346,6 +2343,9 @@ write_patterns(FILE *outfile)
       continue;
     }
 
+#ifdef FIXED_BOARD_SIZE
+    fixup_patterns_for_board_size(p);
+#endif
     /* p->min{i,j} and p->max{i,j} are the maximum extent of the elements,
      * including any rows of '?' which do not feature in the elements list.
      * ie they are the positions of the topleft and bottomright corners of

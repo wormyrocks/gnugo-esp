@@ -195,7 +195,7 @@ accumulate_influence(struct influence_data *q, int pos, int color)
   int queue_start = 0;
   int queue_end = 1;
 
-  static float _EMBEDDED_BSS working[BOARDMAX];
+  static float _EMBEDDED_BSS_SMALL working[BOARDMAX];
   static int working_area_initialized = 0;
 
   if (!working_area_initialized) {
@@ -1607,8 +1607,8 @@ compute_escape_influence(int color, const signed char safe_stones[BOARDMAX],
    * strength[] will currently always be identical for identical board[]
    * states. Better check for these, too.
    */
-  static int _EMBEDDED_BSS cached_board[BOARDMAX];
-  static signed char _EMBEDDED_BSS escape_values[BOARDMAX][2];
+  static int _EMBEDDED_BSS_SMALL cached_board[BOARDMAX];
+  static signed char _EMBEDDED_BSS_SMALL escape_values[BOARDMAX][2];
   static int active_caches[2] = {0, 0};
 
   int cache_number = (color == WHITE);
@@ -1707,9 +1707,9 @@ compute_escape_influence(int color, const signed char safe_stones[BOARDMAX],
 
 
 /* Cache of delta_territory_values. */
-static float _EMBEDDED_BSS delta_territory_cache[BOARDMAX];
-static float _EMBEDDED_BSS followup_territory_cache[BOARDMAX];
-static Hash_data _EMBEDDED_BSS delta_territory_cache_hash[BOARDMAX];
+static float _EMBEDDED_BSS_SMALL delta_territory_cache[BOARDMAX];
+static float _EMBEDDED_BSS_SMALL followup_territory_cache[BOARDMAX];
+static Hash_data _EMBEDDED_BSS_SMALL delta_territory_cache_hash[BOARDMAX];
 static int territory_cache_position_number = -1;
 static int territory_cache_influence_id = -1;
 static int territory_cache_color = -1;

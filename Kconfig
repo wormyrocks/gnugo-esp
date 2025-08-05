@@ -1,0 +1,42 @@
+menu "GNU Go Configuration"
+    config DISABLE_MONTE_CARLO
+        bool "Disable Monte Carlo patterns"
+        default y
+    config STACK_SIZE
+        int "Stack size"
+        default 80
+        range 10 80
+    config DEFAULT_GO_LEVEL
+        int "Default level"
+        default 10
+        range 1 10
+    config USE_ESP_RANDOM
+        bool "Use esp_random"
+        default y
+    config AUTOLEVEL_ON
+        bool "Autolevel on"
+        default y
+    config GO_TASK_PRIO
+        int "Task priority for Go engine"
+        default 10
+        range 0 20
+    config GO_TASK_CORE
+        int "Core for Go engine"
+        default 1
+        range 0 1
+    config OVERCLOCK
+        bool "Overclock to 400mhz"
+        default n
+    config GO_TASK_STACK_MB
+        int "Go task stack size (MB)"
+        default 2
+    config GO_TASK_HEAP_MB
+        int "Go task heap size (MB)"
+        default 4
+    config GO_MIN_LEVEL
+        int "Minimum level"
+        default 1
+    config GO_MAX_LEVEL
+        int "Maximum level"
+        default 10
+endmenu

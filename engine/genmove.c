@@ -300,7 +300,7 @@ collect_move_reasons(int color)
   unconditional_move_reasons(color);
 }
 
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
 /* Call Monte Carlo module to generate a move. */
 static int
 monte_carlo_genmove(int color, int allowed_moves[BOARDMAX],
@@ -549,7 +549,7 @@ do_genmove(int color, float pure_threat_value,
     time_report(1, "move reasons with revised semeai status",
 		NO_MOVE, 1.0);
   }
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
   /* If Monte Carlo move generation is enabled, call it now. Do not
    * override a fuseki move.
    *

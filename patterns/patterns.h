@@ -353,7 +353,7 @@ extern struct pattern_db oracle_db;
 
 extern struct corner_db joseki_db;
 
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
 extern _CONST_DECL struct mc_pattern_database mc_pattern_databases[];
 #endif
 extern _CONST_DECL struct fullboard_pattern fuseki19[];

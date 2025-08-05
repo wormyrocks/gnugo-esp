@@ -4,9 +4,6 @@
 /* Allow resignation. Default enabled */
 #define RESIGNATION_ALLOWED 1
 
-/* Default level (strength). Up to 10 supported */
-#define DEFAULT_LEVEL 10
-
 /* Center oriented influence. Disabled by default. */
 #define COSMIC_GNUGO 0
 
@@ -119,20 +116,27 @@
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #cmakedefine TIME_WITH_SYS_TIME 1
 
-#cmakedefine DISABLE_MONTE_CARLO 1
+#cmakedefine CONFIG_DISABLE_MONTE_CARLO 1
 
 #cmakedefine FIXED_BOARD_SIZE ${FIXED_BOARD_SIZE}
 
 #ifdef ESP_PLATFORM
 #include "esp_attr.h"
+#ifdef CONFIG_USE_ESP_RANDOM
 #include "esp_random.h"
+#endif
 #undef HAVE_TIMES
 #define _EMBEDDED_BSS EXT_RAM_BSS_ATTR
 #define _EMBEDDED_TCM TCM_IRAM_ATTR
+#define DEFAULT_LEVEL CONFIG_DEFAULT_GO_LEVEL
 #else
 #define _EMBEDDED_BSS
 #define _EMBEDDED_TCM
+/* Default level (strength). Up to 10 supported */
+#define DEFAULT_LEVEL 10
 #endif
+
+#define _EMBEDDED_BSS_SMALL
 
 #ifdef FIXED_BOARD_SIZE
 #define _CONST_DECL const

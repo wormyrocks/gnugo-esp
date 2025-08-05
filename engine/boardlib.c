@@ -38,9 +38,9 @@ Intersection initial_board[BOARDSIZE];
 int          initial_board_ko_pos;
 int          initial_white_captured;
 int          initial_black_captured;
-int          _EMBEDDED_BSS move_history_color[MAX_MOVE_HISTORY];
-int          _EMBEDDED_BSS move_history_pos[MAX_MOVE_HISTORY];
-Hash_data _EMBEDDED_BSS  move_history_hash[MAX_MOVE_HISTORY];
+int          _EMBEDDED_BSS_SMALL move_history_color[MAX_MOVE_HISTORY];
+int          _EMBEDDED_BSS_SMALL move_history_pos[MAX_MOVE_HISTORY];
+Hash_data _EMBEDDED_BSS_SMALL  move_history_hash[MAX_MOVE_HISTORY];
 int          move_history_pointer;
 
 float komi = 0.0;

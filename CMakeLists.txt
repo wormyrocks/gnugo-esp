@@ -20,14 +20,12 @@ idf_component_register(
     "interface/main.c"
     "interface/play_gtp.c"
     "interface/play_test.c"
-    "engine/montecarlo.c"
     "patterns/mkpat.c"
     "patterns/mkeyes.c"
     "patterns/extract_fuseki.c"
     "patterns/compress_fuseki.c"
     "patterns/uncompress_fuseki.c"
     "patterns/mkmcpat.c"
-    "patterns/mcpat.c"
 ) 
 ENDIF()
 
@@ -56,7 +54,6 @@ CHECK_FUNCTION_EXISTS(g_vsnprintf HAVE_G_VSNPRINTF)
 
 IF (ESP_PLATFORM)
 SET(FIXED_BOARD_SIZE 9)
-SET(DISABLE_MONTE_CARLO 1)
 SET(SIZEOF_LONG 4)
 component_compile_options(
     -Wno-misleading-indentation
@@ -80,7 +77,7 @@ add_custom_command(OUTPUT patterns/patterns.c
     # Call CMake again directly - ugly but necessary because we need to
     # build the pattern generators for target architecture
     WORKING_DIRECTORY ${BUILD_DIR}
-    COMMAND ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=1 -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
+    COMMAND ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=${CONFIG_DISABLE_MONTE_CARLO} -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
     COMMAND ${CMAKE_COMMAND} --build .build_patterns -t patterns -j
     COMMAND ${CMAKE_COMMAND} -E copy .build_patterns/patterns/*.c ${CMAKE_CURRENT_SOURCE_DIR}/patterns
     COMMENT "Generated pattern database."

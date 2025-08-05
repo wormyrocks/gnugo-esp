@@ -135,7 +135,7 @@ main(int argc, char *argv[])
     free(name);
   }
 
-  printf("struct mc_pattern_database mc_pattern_databases[] = {\n");
+  printf(_CONST_DECLS " struct mc_pattern_database mc_pattern_databases[] = {\n");
   for (i = 1; i < argc; i++) {
     name = copy_and_trim_name(argv[i]);
     printf("  {\"%s\", %s_values},\n", name, name);

@@ -217,6 +217,9 @@ static unsigned int class_mask[NUM_DRAGON_STATUS][3];
 static void
 fixup_patterns_for_board_size(struct pattern *pattern)
 {
+#ifdef FIXED_BOARD_SIZE
+  abort();
+#endif
   for (; pattern->patn; ++pattern)
     if (pattern->edge_constraints != 0) {
 
@@ -993,7 +996,7 @@ static const int corner_y[8] = {0, 1, 1, 0, 1, 0, 0, 1};
  * However, it may be anchored at any corner of the board, so if the board is
  * small, we may calculate NUM_STONES() at negative coordinates.
  */
-static int _EMBEDDED_BSS num_stones[2*BOARDMAX];
+static int _EMBEDDED_BSS_SMALL num_stones[2*BOARDMAX];
 #define NUM_STONES(pos) num_stones[(pos) + BOARDMAX]
 
 /* Stone locations are stored in this array. They might be needed by callback

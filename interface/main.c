@@ -362,7 +362,11 @@ main(int argc, char *argv[])
   int seed = 0;
   int seed_specified = 0;
   
+  #ifndef FIXED_BOARD_SIZE
   int requested_boardsize = -1;
+  #else
+  int requested_boardsize = FIXED_BOARD_SIZE;
+  #endif
 
   sgftree_clear(&sgftree);
   gameinfo_clear(&gameinfo);
@@ -654,7 +658,7 @@ main(int argc, char *argv[])
 	mc_games_per_level = atoi(gg_optarg);
 	break;
 
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
       case OPT_MC_PATTERNS:
 	if (strlen(gg_optarg) >= sizeof(mc_pattern_name)) {
 	  fprintf(stderr, "Too long name given as value to --mc-patterns option.\n");
@@ -1019,7 +1023,7 @@ main(int argc, char *argv[])
   /* Initialize the GNU Go engine. */
   init_gnugo(memory, seed);
 
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
   /* Load Monte Carlo patterns if one has been specified. Either
    * choose one of the compiled in ones or load directly from a
    * database file.

@@ -26,7 +26,7 @@
 
 #include "random.h"
 
-#ifdef ESP_PLATFORM
+#ifdef CONFIG_USE_ESP_RANDOM
 #include "esp_random.h"
 #endif
 
@@ -90,7 +90,8 @@ iterate_tgfsr(void)
 static unsigned int
 next_rand(void)
 {
-  #ifdef ESP_PLATFORM
+  #ifdef CONFIG_USE_ESP_RANDOM
+  rand_initialized=1;
   return (unsigned int)(esp_random());
   #endif
   int y;
@@ -125,7 +126,7 @@ next_rand(void)
 void
 gg_srand(unsigned int seed)
 {
-  #ifndef ESP_PLATFORM
+  #ifndef CONFIG_USE_ESP_RANDOM
   int i;
   for (i = 0; i < N; i++) {
 #if BIG_UINT

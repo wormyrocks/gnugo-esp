@@ -1,4 +1,4 @@
-#ifndef DISABLE_MONTE_CARLO
+#ifndef CONFIG_DISABLE_MONTE_CARLO
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\
  * This is GNU Go, a Go program. Contact gnugo@gnu.org, or see       *
  * http://www.gnu.org/software/gnugo/ for more information.          *
@@ -927,7 +927,7 @@ struct mc_pattern_table
   unsigned int values[(NUM_GEOMETRIES + 1) * NUM_PROPERTIES];
 };
 
-static struct mc_pattern_table mc_patterns;
+static struct mc_pattern_table _EMBEDDED_BSS mc_patterns;
 
 /* The pattern number is determined by the following bit layout:
  * 18-8: Geometry number (range 1..1107)

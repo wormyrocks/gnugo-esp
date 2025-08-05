@@ -298,7 +298,7 @@ static void reduced_init_owl(struct local_owl_data **owl,
 static void init_owl(struct local_owl_data **owl, int target1, int target2,
 		     int move, int use_stack, int new_dragons[BOARDMAX]);
 
-static struct local_owl_data _EMBEDDED_BSS *owl_stack[2 * MAXSTACK];
+static struct local_owl_data _EMBEDDED_BSS_SMALL *owl_stack[2 * MAXSTACK];
 static int owl_stack_size = 0;
 static int owl_stack_pointer = 0;
 static void check_owl_stack_size(void);

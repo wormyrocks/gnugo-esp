@@ -45,12 +45,12 @@
 
 
 /* Random values for the board hash function. For stones and ko position. */
-static Hash_data _EMBEDDED_BSS white_hash[BOARDMAX];
-static Hash_data _EMBEDDED_BSS black_hash[BOARDMAX];
-static Hash_data _EMBEDDED_BSS ko_hash[BOARDMAX];
-static Hash_data _EMBEDDED_BSS komaster_hash[NUM_KOMASTER_STATES];
-static Hash_data _EMBEDDED_BSS kom_pos_hash[BOARDMAX];
-static Hash_data _EMBEDDED_BSS goal_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS_SMALL white_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS_SMALL black_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS_SMALL ko_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS_SMALL komaster_hash[NUM_KOMASTER_STATES];
+static Hash_data _EMBEDDED_BSS_SMALL kom_pos_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS_SMALL goal_hash[BOARDMAX];
 
 
 /* Get a random Hashvalue, where all bits are used. */

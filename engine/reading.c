@@ -5396,8 +5396,8 @@ tune_move_ordering(int params[MOVE_ORDERING_PARAMETERS])
 /* ================================================================ */
 
 
-static int _EMBEDDED_BSS safe_move_cache[BOARDMAX][2];
-static int _EMBEDDED_BSS safe_move_cache_when[BOARDMAX][2];
+static int _EMBEDDED_BSS_SMALL safe_move_cache[BOARDMAX][2];
+static int _EMBEDDED_BSS_SMALL safe_move_cache_when[BOARDMAX][2];
 static void clear_safe_move_cache(void);
 
 static void

@@ -739,7 +739,7 @@ find_worm_attacks_and_defenses()
   int acode, dcode;
   int attack_point;
   int defense_point;
-  static int _EMBEDDED_BSS libs[MAXLIBS];
+  static int _EMBEDDED_BSS_SMALL libs[MAXLIBS];
   int liberties;
   int color;
   int other;
