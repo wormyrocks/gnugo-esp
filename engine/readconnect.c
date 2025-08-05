@@ -1964,7 +1964,7 @@ static int common_vulnerability(int apos, int bpos, int color);
  * 4. If no move was found we assume success if the connection
  *    distance was small and failure otherwise.
  */
-static int
+static int _EMBEDDED_TCM
 recursive_connect2(int str1, int str2, int *move, int has_passed)
 {
   int color = board[str1];
@@ -2095,7 +2095,7 @@ recursive_connect2(int str1, int str2, int *move, int has_passed)
  *    passed once we just declare success. Whether a pass already has
  *    been made is indicated by the has_passed parameter.
  */
-static int
+static int _EMBEDDED_TCM
 recursive_disconnect2(int str1, int str2, int *move, int has_passed)
 {
   int color = board[str1];

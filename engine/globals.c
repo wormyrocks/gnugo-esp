@@ -151,16 +151,16 @@ int _EMBEDDED_BSS number_close_white_worms[BOARDMAX];
 int _EMBEDDED_BSS false_eye_territory[BOARDMAX];
 int _EMBEDDED_BSS forced_backfilling_moves[BOARDMAX];
 
-struct _EMBEDDED_BSS worm_data      worm[BOARDMAX];
-struct _EMBEDDED_BSS  dragon_data    dragon[BOARDMAX];
+struct worm_data     _EMBEDDED_BSS worm[BOARDMAX];
+struct  dragon_data   _EMBEDDED_BSS dragon[BOARDMAX];
 int                   number_of_dragons;
-struct _EMBEDDED_BSS  dragon_data2   *dragon2 = NULL;
-struct _EMBEDDED_BSS  half_eye_data  half_eye[BOARDMAX];
-struct _EMBEDDED_BSS eye_data       black_eye[BOARDMAX];
-struct _EMBEDDED_BSS eye_data       white_eye[BOARDMAX];
-struct _EMBEDDED_BSS vital_eye_points black_vital_points[BOARDMAX];
-struct _EMBEDDED_BSS vital_eye_points white_vital_points[BOARDMAX];
-struct _EMBEDDED_BSS surround_data  surroundings[MAX_SURROUND];
+struct  dragon_data2   *dragon2 = NULL;
+struct  half_eye_data  _EMBEDDED_BSS half_eye[BOARDMAX];
+struct  eye_data      _EMBEDDED_BSS black_eye[BOARDMAX];
+struct  eye_data      _EMBEDDED_BSS white_eye[BOARDMAX];
+struct  vital_eye_points  _EMBEDDED_BSS black_vital_points[BOARDMAX];
+struct  vital_eye_points _EMBEDDED_BSS white_vital_points[BOARDMAX];
+struct  surround_data  _EMBEDDED_BSS surroundings[MAX_SURROUND];
 int                   surround_pointer;
 
 int _EMBEDDED_BSS cutting_points[BOARDMAX];

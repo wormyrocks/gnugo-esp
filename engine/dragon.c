@@ -81,7 +81,7 @@ static int lively_black_dragons;
  * dragon. Public access is via first_worm_in_dragon() and
  * next_worm_in_dragon().
  */
-static int next_worm_list[BOARDMAX];
+static int _EMBEDDED_BSS next_worm_list[BOARDMAX];
 
 /* Alternative for DRAGON2 macro with asserts. */
 struct dragon_data2 *
@@ -1600,7 +1600,7 @@ show_dragons(void)
 }
 
 
-static int new_dragon_origins[BOARDMAX];
+static int _EMBEDDED_BSS new_dragon_origins[BOARDMAX];
 
 /* Compute new dragons, e.g. after having made a move. This will not
  * affect any global state.
@@ -2440,7 +2440,7 @@ struct cut_data {
 };
 
 static int num_cuts = 0;
-static struct cut_data cut_list[MAX_CUTS];
+static struct cut_data _EMBEDDED_BSS cut_list[MAX_CUTS];
 
 static void
 clear_cut_list()

@@ -613,10 +613,10 @@ struct moyo_data
  * in influence.c, however!
  */
 struct influence_data;
-extern _EMBEDDED_BSS struct influence_data initial_black_influence;
-extern _EMBEDDED_BSS struct influence_data initial_white_influence;
-extern _EMBEDDED_BSS struct influence_data move_influence;
-extern _EMBEDDED_BSS struct influence_data followup_influence;
+extern struct influence_data initial_black_influence;
+extern struct influence_data initial_white_influence;
+extern struct influence_data move_influence;
+extern struct influence_data followup_influence;
 
 #define INITIAL_INFLUENCE(color) ((color) == WHITE ? \
 				    &initial_white_influence \
@@ -856,7 +856,7 @@ struct worm_data {
   int defense_threat_codes[MAX_TACTICAL_POINTS];
 };
 
-extern _EMBEDDED_BSS struct worm_data worm[BOARDMAX];
+extern struct worm_data worm[BOARDMAX];
 
 /* Unconditionally meaningless moves. */
 extern int meaningless_black_moves[BOARDMAX];
@@ -871,7 +871,7 @@ struct surround_data {
   signed char surround_map[BOARDMAX]; /* surround map                     */
 };
 
-extern _EMBEDDED_BSS struct surround_data surroundings[MAX_SURROUND];
+extern struct surround_data surroundings[MAX_SURROUND];
 extern int surround_pointer;
 
 /*
@@ -889,7 +889,7 @@ struct dragon_data {
   enum dragon_status status;       /* best trusted status                    */
 };
 
-extern _EMBEDDED_BSS struct dragon_data dragon[BOARDMAX];
+extern struct dragon_data dragon[BOARDMAX];
 
 /* Supplementary data concerning a dragon. Only one copy is stored per
  * dragon in the dragon2 array.
@@ -1006,11 +1006,11 @@ struct vital_eye_points {
   int defense_points[MAX_EYE_ATTACKS];
 };
 
-extern _EMBEDDED_BSS struct vital_eye_points black_vital_points[BOARDMAX];
-extern _EMBEDDED_BSS struct vital_eye_points white_vital_points[BOARDMAX];
+extern struct vital_eye_points black_vital_points[BOARDMAX];
+extern struct vital_eye_points white_vital_points[BOARDMAX];
 
-extern _EMBEDDED_BSS struct eye_data white_eye[BOARDMAX];
-extern _EMBEDDED_BSS struct eye_data black_eye[BOARDMAX];
+extern struct eye_data white_eye[BOARDMAX];
+extern struct eye_data black_eye[BOARDMAX];
 
 /* Array with the information which was previously stored in the cut
  * field and in the INHIBIT_CONNECTION bit of the type field in struct

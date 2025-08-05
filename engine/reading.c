@@ -1407,7 +1407,7 @@ fast_defense(int str, int liberties, int *libs, int *move)
  * if it can get 5 liberties.
  * */
 
-static int _EMBEDDED_TCM
+static int
 defend1(int str, int *move)
 {
   int color = board[str];
@@ -1490,7 +1490,7 @@ defend1(int str, int *move)
  * *move returns the move to save the stones.
  */
 
-static int
+static int _EMBEDDED_TCM
 defend2(int str, int *move)
 {
   int color, other;
@@ -2909,7 +2909,7 @@ do_attack(int str, int *move)
  * caching the result.
  */
 
-static int _EMBEDDED_TCM
+static int
 attack1(int str, int *move)
 {
   int color = board[str];
@@ -3077,7 +3077,7 @@ attack1(int str, int *move)
  * See the comment before defend1 about ladders and reading depth.
  */
 
-static int
+static int _EMBEDDED_TCM
 attack2(int str, int *move)
 {
   int color = board[str];
@@ -3261,7 +3261,7 @@ attack2(int str, int *move)
  * attack succeed.
  */
 
-static int _EMBEDDED_TCM
+static int
 attack3(int str, int *move)
 {
   int color = board[str];
@@ -5396,8 +5396,8 @@ tune_move_ordering(int params[MOVE_ORDERING_PARAMETERS])
 /* ================================================================ */
 
 
-static int safe_move_cache[BOARDMAX][2];
-static int safe_move_cache_when[BOARDMAX][2];
+static int _EMBEDDED_BSS safe_move_cache[BOARDMAX][2];
+static int _EMBEDDED_BSS safe_move_cache_when[BOARDMAX][2];
 static void clear_safe_move_cache(void);
 
 static void

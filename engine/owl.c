@@ -291,14 +291,14 @@ static int find_semeai_backfilling_move(int worm, int liberty);
 static int liberty_of_goal(int pos, struct local_owl_data *owl);
 static int second_liberty_of_goal(int pos, struct local_owl_data *owl);
 static int matches_found;
-static signed char found_matches[BOARDMAX];
+static signed char _EMBEDDED_BSS found_matches[BOARDMAX];
 
 static void reduced_init_owl(struct local_owl_data **owl,
     			     int at_bottom_of_stack);
 static void init_owl(struct local_owl_data **owl, int target1, int target2,
 		     int move, int use_stack, int new_dragons[BOARDMAX]);
 
-static struct local_owl_data *owl_stack[2 * MAXSTACK];
+static struct local_owl_data _EMBEDDED_BSS *owl_stack[2 * MAXSTACK];
 static int owl_stack_size = 0;
 static int owl_stack_pointer = 0;
 static void check_owl_stack_size(void);
@@ -317,7 +317,7 @@ static int list_goal_worms(struct local_owl_data *owl,
 /* FIXME: taken from move_reasons.h */
 #define MAX_DRAGONS       2 * MAX_BOARD * MAX_BOARD / 3
 
-static int dragon_goal_worms[MAX_DRAGONS][MAX_GOAL_WORMS];
+static int _EMBEDDED_BSS dragon_goal_worms[MAX_DRAGONS][MAX_GOAL_WORMS];
 
 static void
 prepare_goal_list(int str, struct local_owl_data *owl,

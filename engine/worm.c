@@ -589,7 +589,7 @@ do_compute_effective_worm_sizes(int color, int (*cw)[MAX_CLOSE_WORMS],
    * worms may potentially be equally close, but no more than
    * 2*(board_size-1).
    */
-  static int worms[BOARDMAX][2*(MAX_BOARD-1)];
+  static int _EMBEDDED_BSS worms[BOARDMAX][2*(MAX_BOARD-1)];
   int nworms[BOARDMAX];   /* number of equally close worms */
   int found_one;
   int dist; /* current distance */
@@ -739,7 +739,7 @@ find_worm_attacks_and_defenses()
   int acode, dcode;
   int attack_point;
   int defense_point;
-  static int libs[MAXLIBS];
+  static int _EMBEDDED_BSS libs[MAXLIBS];
   int liberties;
   int color;
   int other;

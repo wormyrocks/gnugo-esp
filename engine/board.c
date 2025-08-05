@@ -135,28 +135,28 @@ struct vertex_stack_entry {
 
 
 /* Main array of string information. */
-static _EMBEDDED_BSS struct string_data string[MAX_STRINGS];
-static _EMBEDDED_BSS struct string_liberties_data string_libs[MAX_STRINGS];
-static _EMBEDDED_BSS struct string_neighbors_data string_neighbors[MAX_STRINGS];
+static struct string_data _EMBEDDED_BSS string[MAX_STRINGS];
+static struct string_liberties_data _EMBEDDED_BSS string_libs[MAX_STRINGS];
+static struct string_neighbors_data _EMBEDDED_BSS string_neighbors[MAX_STRINGS];
 
 /* Stacks and stack pointers. */
-static _EMBEDDED_BSS struct change_stack_entry change_stack[STACK_SIZE];
+static struct change_stack_entry _EMBEDDED_BSS change_stack[STACK_SIZE];
 static struct change_stack_entry *change_stack_pointer;
 
-static _EMBEDDED_BSS struct vertex_stack_entry vertex_stack[STACK_SIZE];
+static struct vertex_stack_entry _EMBEDDED_BSS vertex_stack[STACK_SIZE];
 static struct vertex_stack_entry *vertex_stack_pointer;
 
 
 /* Index into list of strings. The index is only valid if there is a
  * stone at the vertex.
  */
-static _EMBEDDED_BSS int string_number[BOARDMAX];
+static int _EMBEDDED_BSS string_number[BOARDMAX];
 
 
 /* The stones in a string are linked together in a cyclic list. 
  * These are the coordinates to the next stone in the string.
  */
-static _EMBEDDED_BSS int next_stone[BOARDMAX];
+static int _EMBEDDED_BSS next_stone[BOARDMAX];
 
 
 /* ---------------------------------------------------------------- */
@@ -1619,7 +1619,7 @@ findlib(int str, int maxlib, int *libs)
  * Note well, that it relies on incremental data.
  */
 
-int _EMBEDDED_TCM
+int 
 fastlib(int pos, int color, int ignore_captures)
 {
   int ally1 = -1;
@@ -1779,7 +1779,7 @@ struct board_cache_entry {
 
 
 /* approxlib() cache. */
-static struct board_cache_entry approxlib_cache[BOARDMAX][2];
+static struct board_cache_entry _EMBEDDED_BSS approxlib_cache[BOARDMAX][2];
 
 
 /* Clears approxlib() cache. This function should be called only once
@@ -2071,7 +2071,7 @@ slow_approxlib(int pos, int color, int maxlib, int *libs)
 
 
 /* accuratelib() cache. */
-static struct board_cache_entry accuratelib_cache[BOARDMAX][2];
+static struct board_cache_entry _EMBEDDED_BSS accuratelib_cache[BOARDMAX][2];
 
 
 /* Clears accuratelib() cache. This function should be called only once

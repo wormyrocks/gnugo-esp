@@ -520,7 +520,7 @@ matchpat_loop(matchpat_callback_fn_ptr callback, int color, int anchor,
 
 /* Data. */
 static int dfa_board_size = -1;
-static int dfa_p[DFA_BASE * DFA_BASE];
+static int _EMBEDDED_BSS dfa_p[DFA_BASE * DFA_BASE];
 
 /* This is used by the EXPECTED_COLOR macro. */
 static const int convert[3][4] = {
@@ -993,7 +993,7 @@ static const int corner_y[8] = {0, 1, 1, 0, 1, 0, 0, 1};
  * However, it may be anchored at any corner of the board, so if the board is
  * small, we may calculate NUM_STONES() at negative coordinates.
  */
-static int num_stones[2*BOARDMAX];
+static int _EMBEDDED_BSS num_stones[2*BOARDMAX];
 #define NUM_STONES(pos) num_stones[(pos) + BOARDMAX]
 
 /* Stone locations are stored in this array. They might be needed by callback

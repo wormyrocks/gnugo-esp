@@ -36,49 +36,49 @@
 
 /* All these data structures are declared in move_reasons.h */
 
-struct move_data move[BOARDMAX];
-struct move_reason move_reasons[MAX_MOVE_REASONS];
+struct move_data _EMBEDDED_BSS move[BOARDMAX];
+struct move_reason _EMBEDDED_BSS move_reasons[MAX_MOVE_REASONS];
 int next_reason;
 
 /* Connections */
-int conn_worm1[MAX_CONNECTIONS];
-int conn_worm2[MAX_CONNECTIONS];
+int _EMBEDDED_BSS conn_worm1[MAX_CONNECTIONS];
+int _EMBEDDED_BSS conn_worm2[MAX_CONNECTIONS];
 int next_connection;
 
 /* Potential semeai moves. */
-int semeai_target1[MAX_POTENTIAL_SEMEAI];
-int semeai_target2[MAX_POTENTIAL_SEMEAI];
+int _EMBEDDED_BSS semeai_target1[MAX_POTENTIAL_SEMEAI];
+int _EMBEDDED_BSS semeai_target2[MAX_POTENTIAL_SEMEAI];
 static int next_semeai;
 
 /* Unordered sets (currently pairs) of move reasons / targets */
-Reason_set either_data[MAX_EITHER];
+Reason_set _EMBEDDED_BSS either_data[MAX_EITHER];
 int next_either;
-Reason_set all_data[MAX_ALL];
+Reason_set _EMBEDDED_BSS all_data[MAX_ALL];
 int next_all;
 
 /* Eye shapes */
-int eyes[MAX_EYES];
-int eyecolor[MAX_EYES];
+int _EMBEDDED_BSS eyes[MAX_EYES];
+int _EMBEDDED_BSS eyecolor[MAX_EYES];
 int next_eye;
 
 /* Lunches */
-int lunch_dragon[MAX_LUNCHES]; /* eater */
-int lunch_worm[MAX_LUNCHES];   /* food */
+int _EMBEDDED_BSS lunch_dragon[MAX_LUNCHES]; /* eater */
+int _EMBEDDED_BSS lunch_worm[MAX_LUNCHES];   /* food */
 int next_lunch;
 
 /* Point redistribution */
-int replacement_map[BOARDMAX];
+int _EMBEDDED_BSS replacement_map[BOARDMAX];
 
 /* The color for which we are evaluating moves. */
 int current_color;
 
 /* Attack threats that are known to be sente locally. */
-static int known_good_attack_threats[BOARDMAX][MAX_ATTACK_THREATS];
+static int _EMBEDDED_BSS known_good_attack_threats[BOARDMAX][MAX_ATTACK_THREATS];
 
 /* Moves that are known to be safe (in the sense that played stones can
  * be captured, but opponent loses much more when attempting to do so)
  */
-static int known_safe_moves[BOARDMAX];
+static int _EMBEDDED_BSS known_safe_moves[BOARDMAX];
 
 /* Helper functions to check conditions in discard rules. */
 typedef int (*discard_condition_fn_ptr)(int pos, int what);
@@ -1890,7 +1890,7 @@ list_move_reasons(FILE *out, int move_pos)
  * FIXME: Add handling of ALL and EITHER moves for inessential worms.
  */
 
-static struct discard_rule discard_rules[] =
+static _CONST_DECL struct discard_rule discard_rules[] =
 {
   { { ATTACK_MOVE, ATTACK_MOVE_GOOD_KO,
       ATTACK_MOVE_BAD_KO, ATTACK_THREAT,
