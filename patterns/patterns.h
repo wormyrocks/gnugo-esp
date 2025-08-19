@@ -356,8 +356,11 @@ extern struct corner_db joseki_db;
 #ifndef CONFIG_DISABLE_MONTE_CARLO
 extern _CONST_DECL struct mc_pattern_database mc_pattern_databases[];
 #endif
+#if FIXED_BOARD_SIZE == 9
+#else
 extern _CONST_DECL struct fullboard_pattern fuseki19[];
 extern _CONST_DECL struct fullboard_pattern fuseki13[];
+#endif
 extern _CONST_DECL struct fullboard_pattern fuseki9[];
 
 struct corner_db;

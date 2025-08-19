@@ -293,6 +293,9 @@ search_fuseki_database(int color)
   if (stones_on_board(BLACK | WHITE) > MAX_FUSEKI_DATABASE_STONES)
     return 0;
 
+#if FIXED_BOARD_SIZE == 9
+    database = fuseki9;
+#else
   /* We only have databases for 9x9, 13x13 and 19x19. */
   if (board_size == 9)
     database = fuseki9;
@@ -302,7 +305,7 @@ search_fuseki_database(int color)
     database = fuseki19;
   else
     return 0;
-
+#endif
   /* Do the matching. */
   num_fuseki_moves = 0;
   fuseki_total_value = 0;

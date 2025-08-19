@@ -2251,12 +2251,11 @@ write_attributes(FILE *outfile)
 
 #ifdef FIXED_BOARD_SIZE
 // Copied out of matchpat.c
+static int pcnt=0;
+static int sz = FIXED_BOARD_SIZE;
 static void fixup_patterns_for_board_size(struct pattern *pattern)
 {
-  static int board_size = FIXED_BOARD_SIZE;
-  for (; pattern->patn; ++pattern)
     if (pattern->edge_constraints != 0) {
-
       /* If the patterns have been fixed up for a different board size
        * earlier, we need to undo the modifications that were done
        * below before we do them anew. The first time this function is
@@ -2276,28 +2275,28 @@ static void fixup_patterns_for_board_size(struct pattern *pattern)
 	pattern->minj = pattern->maxj - pattern->width;
       
       /* we extend the pattern in the direction opposite the constraint,
-       * such that maxi (+ve) - mini (-ve) = board_size-1
+       * such that maxi (+ve) - mini (-ve) = sz-1
        * Note : the pattern may be wider than the board, so
        * we need to be a bit careful !
        */
       
       if (pattern->edge_constraints & NORTH_EDGE)
-	if (pattern->maxi < (board_size-1) + pattern->mini)
-	  pattern->maxi = (board_size-1) + pattern->mini;
+	if (pattern->maxi < (sz-1) + pattern->mini)
+	  pattern->maxi = (sz-1) + pattern->mini;
       
       if (pattern->edge_constraints & SOUTH_EDGE)
-	if (pattern->mini > pattern->maxi - (board_size-1))
-	  pattern->mini = pattern->maxi - (board_size-1);
+	if (pattern->mini > pattern->maxi - (sz-1))
+	  pattern->mini = pattern->maxi - (sz-1);
       
       if (pattern->edge_constraints & WEST_EDGE)
-	if (pattern->maxj <  (board_size-1) + pattern->minj)
-	  pattern->maxj = (board_size-1) + pattern->minj;
+	if (pattern->maxj <  (sz-1) + pattern->minj)
+	  pattern->maxj = (sz-1) + pattern->minj;
       
       if (pattern->edge_constraints & EAST_EDGE)
-	if (pattern->minj > pattern->maxj - (board_size-1))
-	  pattern->minj = pattern->maxj - (board_size-1);
+	if (pattern->minj > pattern->maxj - (sz-1))
+	  pattern->minj = pattern->maxj - (sz-1);
     }
-}
+  }
 #endif
 
 /* Sort and write out the patterns. */

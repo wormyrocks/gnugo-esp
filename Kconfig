@@ -8,7 +8,7 @@ menu "GNU Go Configuration"
         range 10 80
     config DEFAULT_GO_LEVEL
         int "Default level"
-        default 10
+        default 8
         range 1 10
     config USE_ESP_RANDOM
         bool "Use esp_random"
@@ -18,6 +18,10 @@ menu "GNU Go Configuration"
         default y
     config GO_TASK_PRIO
         int "Task priority for Go engine"
+        default 0
+        range 0 20
+    config UI_TASK_PRIO
+        int "Task priority for UI task"
         default 10
         range 0 20
     config GO_TASK_CORE
