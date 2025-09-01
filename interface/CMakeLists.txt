@@ -13,6 +13,7 @@ SET(gnugo_SRCS
     play_test.c
     gmp.c
     gtp.c
+    gnugo_esp_wrapper.c
     )
 
 ADD_EXECUTABLE(gnugo ${gnugo_SRCS})
