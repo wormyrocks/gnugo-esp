@@ -34,6 +34,7 @@ typedef enum {
     ESP_GNUGO_EVENT_CAPTURE,
     ESP_GNUGO_EVENT_PASS,
     ESP_GNUGO_EVENT_WIN,
+    ESP_GNUGO_EVENT_RESIGN,
     ESP_GNUGO_EVENT_UNDO,
     ESP_GNUGO_EVENT_RESTART
 } esp_gnugo_event_t;
@@ -50,7 +51,7 @@ typedef struct {
     esp_gnugo_state_t state;
     esp_gnugo_event_t last_event;
 } esp_gnugo_game_state_t;
-typedef void (*board_update_callback)(esp_gnugo_game_state_t*);
+typedef void (*board_update_callback)(const esp_gnugo_game_state_t*);
 
 typedef struct {
     bool player_is_white;
@@ -68,5 +69,8 @@ void esp_gnugo_set_level(int level);
 void esp_gnugo_start(esp_gnugo_game_init_t);
 void esp_gnugo_get_computer_move();
 int esp_gnugo_set_player_move(char *);
+int esp_gnugo_set_player_move_int(int);
+int esp_gnugo_pos_from_xy(int x, int y);
+
 
 #endif

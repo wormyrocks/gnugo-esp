@@ -13,7 +13,6 @@ static SGFTree sgftree;
 
 static esp_gnugo_game_state_t game_state;
 static board_update_callback update_cb;
-static int last_move;
 
 void esp_gnugo_update_board_state(int game_is_over)
 {
@@ -32,6 +31,7 @@ void esp_gnugo_update_board_state(int game_is_over)
                 game_state.board[x][y] = val;
             }
         }
+    int last_move = get_last_move();
     game_state.state = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
     if (gameinfo->computer_player == gameinfo->to_move)
     {
@@ -42,6 +42,10 @@ void esp_gnugo_update_board_state(int game_is_over)
     {
         game_state.state = ESP_GNUGO_STATE_GAME_OVER;
         game_state.last_event = ESP_GNUGO_EVENT_WIN;
+        if (!is_pass(last_move))
+        {
+            game_state.last_event = ESP_GNUGO_EVENT_RESIGN;
+        }
         for (int pos = BOARDMIN; pos < BOARDMAX; pos++)
         {
             if (!IS_STONE(board[pos]))
@@ -66,7 +70,8 @@ void esp_gnugo_update_board_state(int game_is_over)
                 game_state.last_event = ESP_GNUGO_EVENT_CAPTURE;
             }
         }
-        location_to_buffer(last_move, (gameinfo->to_move == BLACK) ? game_state.white_last_move : game_state.black_last_move);
+        if (movenum)
+            location_to_buffer(last_move, (gameinfo->to_move == BLACK) ? game_state.white_last_move : game_state.black_last_move);
     }
     game_state.score = (white_score + black_score) / 2.0;
     game_state.white_turn = (gameinfo->to_move == WHITE);
@@ -104,7 +109,7 @@ void esp_gnugo_start(esp_gnugo_game_init_t init_params)
     update_cb = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
     set_level(init_params.start_level);
-    komi = (float)init_params.komi;
+    komi = init_params.komi;
     board_size = FIXED_BOARD_SIZE;
     gameinfo_clear(gameinfo);
     gameinfo->handicap = init_params.requested_handicap;
@@ -140,51 +145,66 @@ void esp_gnugo_start(esp_gnugo_game_init_t init_params)
     esp_gnugo_update_board_state(0);
 }
 
-// Return 1 if game is over
-static int enter_pass()
+static void process_move(int move, int did_resign)
 {
-    passes++;
     init_sgf(gameinfo);
-    gnugo_play_move(PASS_MOVE, gameinfo->to_move);
-    sgftreeAddPlay(&sgftree, gameinfo->to_move, -1, -1);
+    gnugo_play_move(move, gameinfo->to_move);
+    sgftreeAddPlay(&sgftree, gameinfo->to_move, I(move), J(move));
     gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
-    last_move = PASS_MOVE;
-    if (passes >= 2)
+    if (is_pass(move))
+        passes++;
+    else
+        passes = 0;
+    if (passes >= 2 || did_resign)
     {
-        // Score game
-        who_wins(EMPTY, stdout);
+        if (passes >= 2)
+        {
+            who_wins(EMPTY, stdout);
+        }
         printf("***GAME OVER***\n\n\n");
         esp_gnugo_update_board_state(1);
-        return 1;
-    }
-    esp_gnugo_update_board_state(0);
-    return 0;
-}
-
-static int player_move(char *location)
-{
-    int move;
-    if (location[0] == 'p')
-    {
-        move = PASS_MOVE;
-        return enter_pass();
     }
     else
     {
-        move = string_to_location(FIXED_BOARD_SIZE, location);
-        if (move == NO_MOVE || !is_allowed_move(move, gameinfo->to_move))
+        esp_gnugo_update_board_state(0);
+    }
+}
+
+// return 1 if ok, 0 if illegal, -1 if ???
+int esp_gnugo_set_player_move_str(char *in_move)
+{
+    int out_move = 0, resign = 0;
+    if (in_move[0] == 'p')
+    {
+        in_move = PASS_MOVE;
+    }
+    else if (in_move[0] == 'r')
+    {
+        resign = 1;
+    }
+    else
+    {
+        out_move = string_to_location(FIXED_BOARD_SIZE, in_move);
+        if (out_move == NO_MOVE || !is_allowed_move(out_move, gameinfo->to_move))
         {
             printf("illegal\n");
             return 0;
         }
     }
-    passes = 0;
-    init_sgf(gameinfo);
-    gnugo_play_move(move, gameinfo->to_move);
-    sgftreeAddPlay(&sgftree, gameinfo->to_move, I(move), J(move));
-    last_move = move;
-    gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
-    esp_gnugo_update_board_state(0);
+    process_move(out_move, resign);
+    return 1;
+}
+
+// return 1 if ok, 0 if illegal, -1 if ???
+int esp_gnugo_set_player_move_int(int in_move)
+{
+    int out_move = 0, resign = 0;
+    if (!is_allowed_move(in_move, gameinfo->to_move))
+    {
+        printf("illegal\n");
+        return 0;
+    }
+    process_move(in_move, resign);
     return 1;
 }
 
@@ -196,12 +216,6 @@ void esp_gnugo_restart()
     sgftreeCreateHeaderNode(&sgftree, board_size, komi, gameinfo->handicap);
     sgf_initialized = 0;
     gameinfo_clear(gameinfo);
-}
-
-// return 1 if ok, 0 if illegal, -1 if ???
-int esp_gnugo_set_player_move(char *in_move)
-{
-    return player_move(in_move);
 }
 
 void esp_gnugo_save_sgf(char *fname)
@@ -217,21 +231,10 @@ void esp_gnugo_get_computer_move()
     int resign = 0;
     float move_value;
     int move = genmove(gameinfo->to_move, &move_value, &resign);
-    if (resign)
-    {
-        printf("COMPUTER RESIGNED.\n");
-        game_state.state = ESP_GNUGO_STATE_GAME_OVER;
-    }
-    if (is_pass(move))
-    {
-        printf("COMPUTER PASSES");
-        return enter_pass();
-    }
-    passes = 0;
-    gnugo_play_move(move, gameinfo->to_move);
-    sgftreeAddPlay(&sgftree, gameinfo->to_move, I(move), J(move));
-    game_state.state = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
-    last_move = move;
-    gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
-    esp_gnugo_update_board_state(0);
+    process_move(move, resign);
+}
+
+int esp_gnugo_pos_from_xy(int x, int y)
+{
+    return POS(x, y);
 }
