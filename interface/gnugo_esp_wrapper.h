@@ -56,7 +56,7 @@ typedef struct {
     bool player_is_white;
     bool undo_allowed;
     int start_level;
-    int komi;
+    float komi;
     int random_seed;
     int memory_mb;
     int requested_handicap;

@@ -20,9 +20,21 @@ void esp_gnugo_update_board_state(int game_is_over)
     // Update board
     for (int x = 0; x < GRID_POINTS; x++)
         for (int y = 0; y < GRID_POINTS; y++)
-            (game_state.board)[x][y] = BOARD(y, x);
+        {
+            int val = BOARD(y, x);
+            if ((val == GRID_EMPTY) && IS_STONE((game_state.board)[x][y]))
+            {
+                // Show dead stones as captured for one frame
+                game_state.board[x][y] += 10;
+            }
+            else
+            {
+                game_state.board[x][y] = val;
+            }
+        }
     game_state.state = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
-    if (gameinfo->computer_player == gameinfo->to_move) {
+    if (gameinfo->computer_player == gameinfo->to_move)
+    {
         game_state.state = ESP_GNUGO_STATE_WAITING_FOR_CPU;
     }
 
@@ -210,7 +222,8 @@ void esp_gnugo_get_computer_move()
         printf("COMPUTER RESIGNED.\n");
         game_state.state = ESP_GNUGO_STATE_GAME_OVER;
     }
-    if (is_pass(move)) {
+    if (is_pass(move))
+    {
         printf("COMPUTER PASSES");
         return enter_pass();
     }
