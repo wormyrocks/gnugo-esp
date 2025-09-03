@@ -47,13 +47,18 @@ void esp_gnugo_update_board_state(int game_is_over)
         {
             game_state.last_event = ESP_GNUGO_EVENT_RESIGN;
         }
-        for (int pos = BOARDMIN; pos < BOARDMAX; pos++)
+        // If last move was a resignation, no need to update board or show dead stones
+        else
         {
-            if (!IS_STONE(board[pos]))
-                continue;
-            if (dragon[pos].status == DEAD)
+            for (int pos = BOARDMIN; pos < BOARDMAX; pos++)
             {
-                (game_state.board)[J(pos)][I(pos)] = ((dragon[pos].color == GRID_WHITE) ? GRID_DEAD_WHITE : GRID_DEAD_BLACK);
+                if (!IS_STONE(board[pos]))
+                    continue;
+                if (dragon[pos].status == DEAD)
+                {
+                    // Deadify stone
+                    (game_state.board)[J(pos)][I(pos)] += 10;
+                }
             }
         }
     }
@@ -80,6 +85,7 @@ void esp_gnugo_update_board_state(int game_is_over)
     game_state.black_captured = black_captured;
     game_state.white_captured = white_captured;
     // showboard(0);
+    // writesgf(sgftree.root, "out.sgf");
     if (update_cb != NULL)
         update_cb(&game_state);
 }
@@ -101,6 +107,12 @@ init_sgf(Gameinfo *ginfo)
     sgf_initialized = 1;
     sgf_write_header(sgftree.root, 1, get_random_seed(), komi,
                      ginfo->handicap, get_level(), chinese_rules);
+}
+
+void esp_gnugo_save_sgf(char *fname)
+{
+    init_sgf(gameinfo);
+    writesgf(sgftree.root, fname);
 }
 
 void esp_gnugo_start(esp_gnugo_game_init_t init_params)
@@ -218,12 +230,6 @@ void esp_gnugo_restart()
     sgftreeCreateHeaderNode(&sgftree, board_size, komi, gameinfo->handicap);
     sgf_initialized = 0;
     gameinfo_clear(gameinfo);
-}
-
-void esp_gnugo_save_sgf(char *fname)
-{
-    init_sgf(gameinfo);
-    writesgf(sgftree.root, fname);
 }
 
 void esp_gnugo_get_computer_move()
