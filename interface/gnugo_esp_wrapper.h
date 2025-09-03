@@ -48,6 +48,7 @@ typedef struct {
     int white_captured;
     int move_number;
     int white_turn;
+    int level;
     esp_gnugo_state_t state;
     esp_gnugo_event_t last_event;
 } esp_gnugo_game_state_t;
@@ -56,6 +57,7 @@ typedef void (*board_update_callback)(const esp_gnugo_game_state_t*);
 typedef struct {
     bool player_is_white;
     bool undo_allowed;
+    bool autolevel;
     int start_level;
     float komi;
     int random_seed;

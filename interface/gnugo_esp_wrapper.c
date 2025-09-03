@@ -16,6 +16,7 @@ static board_update_callback update_cb;
 
 void esp_gnugo_update_board_state(int game_is_over)
 {
+    game_state.level = get_level();
     // Update board
     for (int x = 0; x < GRID_POINTS; x++)
         for (int y = 0; y < GRID_POINTS; y++)
@@ -78,7 +79,7 @@ void esp_gnugo_update_board_state(int game_is_over)
     game_state.move_number = movenum;
     game_state.black_captured = black_captured;
     game_state.white_captured = white_captured;
-    showboard(0);
+    // showboard(0);
     if (update_cb != NULL)
         update_cb(&game_state);
 }
@@ -106,6 +107,7 @@ void esp_gnugo_start(esp_gnugo_game_init_t init_params)
 {
     assert(game_state.state == ESP_GNUGO_STATE_NOT_STARTED);
     passes = 0;
+    autolevel_on = init_params.autolevel;
     update_cb = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
     set_level(init_params.start_level);
