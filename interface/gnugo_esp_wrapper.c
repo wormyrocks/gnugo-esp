@@ -19,6 +19,7 @@ static int passes = 0;
 static int game_is_over = 0;
 static bool undo_allowed = false;
 
+// by convention (for now), all updates to game_state happen in this function
 static void esp_gnugo_update_board_state()
 {
     // Update board
@@ -45,14 +46,10 @@ static void esp_gnugo_update_board_state()
     if (game_is_over)
     {
         game_state.state = ESP_GNUGO_STATE_GAME_OVER;
-        game_state.last_event = ESP_GNUGO_EVENT_WIN;
-        if (!is_pass(get_last_move()))
-        {
-            game_state.last_event = ESP_GNUGO_EVENT_RESIGN;
-        }
         // If last move was a resignation, no need to update board or show dead stones
-        else
+        if (passes == 2)
         {
+            game_state.last_event = ESP_GNUGO_EVENT_WIN;
             for (int pos = BOARDMIN; pos < BOARDMAX; pos++)
             {
                 if (!IS_STONE(board[pos]))
@@ -63,6 +60,10 @@ static void esp_gnugo_update_board_state()
                     (game_state.board)[J(pos)][I(pos)] += 10;
                 }
             }
+        }
+        else
+        {
+            game_state.last_event = ESP_GNUGO_EVENT_RESIGN;
         }
     }
     else
@@ -181,18 +182,26 @@ static void process_move(int move, int did_resign)
     gnugo_play_move(move, gameinfo->to_move);
     sgftreeAddPlay(&sgftree, gameinfo->to_move, I(move), J(move));
     gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
-    if (is_pass(move))
-        passes++;
-    else
-        passes = 0;
-    game_is_over = (passes >= 2 || did_resign);
-    if (game_is_over)
+    if (did_resign)
     {
-        if (passes >= 2)
+        game_is_over = 1;
+    }
+    else
+    {
+        if (is_pass(move))
         {
-            who_wins(EMPTY, stdout);
+            if (++passes == 2)
+            {
+                game_is_over = 1;
+                who_wins(EMPTY, stdout);
+            }
+        }
+        else
+        {
+            passes = 0;
         }
     }
+    printf("passes: %d %d\n",passes, game_is_over);
     esp_gnugo_update_board_state();
 }
 
