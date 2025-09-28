@@ -238,8 +238,9 @@ int esp_gnugo_set_player_command(engine_signal_t e)
         return 1;
     case COMMAND_FORCEQUIT:
         return 1;
+    default:
+        return game_state.state;
     }
-    return game_state.state;
 }
 
 void esp_gnugo_restart()
