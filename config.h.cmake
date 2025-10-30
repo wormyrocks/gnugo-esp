@@ -127,7 +127,11 @@
 #endif
 #undef HAVE_TIMES
 #define _EMBEDDED_BSS EXT_RAM_BSS_ATTR
+#ifdef CONFIG_USE_TCM
 #define _EMBEDDED_TCM TCM_IRAM_ATTR
+#else
+#define _EMBEDDED_TCM 
+#endif
 #define DEFAULT_LEVEL CONFIG_DEFAULT_GO_LEVEL
 #else
 #define _EMBEDDED_BSS

@@ -67,6 +67,7 @@ component_compile_options(
     -Wno-unused-but-set-variable
     -Wno-discarded-qualifiers
     -Wno-expansion-to-defined
+    -Wno-old-style-definition
 )
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 # times.h is bad in picolibc

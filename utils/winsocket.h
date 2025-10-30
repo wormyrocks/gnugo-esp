@@ -30,13 +30,14 @@
 #include <config.h>
 #endif
 
-
+#pragma GCC diagnostic ignored "-Wexpansion-to-defined"
 #define USE_WINDOWS_SOCKET_CLUDGE		\
   ((defined(_WIN32) || defined(_WIN32_WCE))	\
    && defined(ENABLE_SOCKET_SUPPORT))
 
 
 #if USE_WINDOWS_SOCKET_CLUDGE
+#pragma GCC diagnostic pop
 
 
 #include <stdarg.h>
