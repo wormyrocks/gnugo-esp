@@ -201,7 +201,7 @@ static void process_move(int move, int did_resign)
             passes = 0;
         }
     }
-    printf("passes: %d %d\n",passes, game_is_over);
+    printf("passes: %d %d\n", passes, game_is_over);
     esp_gnugo_update_board_state();
 }
 
@@ -226,12 +226,13 @@ int esp_gnugo_set_player_command(engine_signal_t e)
             process_move(move_if_any, 0);
         return ret;
     }
+    case COMMAND_SAVE_QUIT:
     case COMMAND_SAVE:
     {
         printf("Game saved to %s\n", sgfname);
         init_sgf(gameinfo);
         writesgf(sgftree.root, sgfname);
-        return 0;
+        return (go_command == COMMAND_SAVE_QUIT);
     }
     case COMMAND_RESTART:
         esp_gnugo_restart();

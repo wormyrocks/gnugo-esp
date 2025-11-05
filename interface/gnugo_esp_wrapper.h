@@ -56,13 +56,13 @@ typedef struct
 typedef enum
 {
     COMMAND_NONE,
-    COMMAND_GENMOVE,
     COMMAND_PASS,
     COMMAND_PLAY,
     COMMAND_RESIGN,
     COMMAND_RESTART,
     COMMAND_SAVE,
-    COMMAND_FORCEQUIT
+    COMMAND_FORCEQUIT,
+    COMMAND_SAVE_QUIT
 } go_command_t;
 
 // UI => Engine
