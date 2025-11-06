@@ -5,6 +5,10 @@
 #include "liberty.h"
 #include "assert.h"
 #include "string.h"
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <fcntl.h>
 
 #define GRID_POINTS FIXED_BOARD_SIZE
 
@@ -18,6 +22,22 @@ static int sgf_initialized = 0;
 static int passes = 0;
 static int game_is_over = 0;
 static bool undo_allowed = false;
+
+// memstream allowing us to use file operations to write to a RAM buffer
+static char *sgf_outptr = NULL;
+static size_t sgf_outbuf_len = 0;
+
+static void
+init_sgf(Gameinfo *ginfo)
+{
+    if (sgf_initialized)
+        return;
+    sgf_initialized = 1;
+    sgf_write_header(sgftree.root, 1, get_random_seed(), komi,
+                     ginfo->handicap, get_level(), chinese_rules);
+    if (ginfo->handicap > 0)
+        sgffile_recordboard(sgftree.root);
+}
 
 // by convention (for now), all updates to game_state happen in this function
 static void esp_gnugo_update_board_state()
@@ -91,6 +111,16 @@ static void esp_gnugo_update_board_state()
     game_state.move_number = movenum;
     game_state.black_captured = black_captured;
     game_state.white_captured = white_captured;
+
+    // Buffer up existing SGF to file.
+    if (sgf_outptr)
+        free(sgf_outptr);
+    FILE *sgf_outfd = open_memstream(&sgf_outptr, &sgf_outbuf_len);
+    assert(sgf_outfd != NULL);
+    init_sgf(gameinfo);
+    writesgf_fd(sgftree.root, sgf_outfd);
+    fclose(sgf_outfd);
+
     if (update_cb != NULL)
         update_cb(&game_state);
 }
@@ -101,9 +131,9 @@ static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int r
     int did_load = 0;
     if (infile)
     {
-        printf("Trying to resume from %s\n", infile);
         if (sgftree_readfile(&sgftree, infile))
         {
+            printf("Resumed game from %s.\n", infile);
             did_load = (gameinfo_play_sgftree(gameinfo, &sgftree, NULL) != EMPTY);
             if (did_load)
                 sgf_initialized = 1;
@@ -137,17 +167,6 @@ void esp_gnugo_set_level(int level)
     set_level(level);
 }
 
-static void
-init_sgf(Gameinfo *ginfo)
-{
-    if (sgf_initialized)
-        return;
-    sgf_initialized = 1;
-    sgf_write_header(sgftree.root, 1, get_random_seed(), komi,
-                     ginfo->handicap, get_level(), chinese_rules);
-    if (ginfo->handicap > 0)
-        sgffile_recordboard(sgftree.root);
-}
 static esp_gnugo_game_init_t i_p;
 esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params)
 {
@@ -201,7 +220,8 @@ static void process_move(int move, int did_resign)
             passes = 0;
         }
     }
-    printf("passes: %d %d\n", passes, game_is_over);
+    if (passes)
+        printf("passes: %d %d\n", passes, game_is_over);
     esp_gnugo_update_board_state();
 }
 
@@ -225,14 +245,6 @@ int esp_gnugo_set_player_command(engine_signal_t e)
         if (ret)
             process_move(move_if_any, 0);
         return ret;
-    }
-    case COMMAND_SAVE_QUIT:
-    case COMMAND_SAVE:
-    {
-        printf("Game saved to %s\n", sgfname);
-        init_sgf(gameinfo);
-        writesgf(sgftree.root, sgfname);
-        return (go_command == COMMAND_SAVE_QUIT);
     }
     case COMMAND_RESTART:
         esp_gnugo_restart();
@@ -280,4 +292,29 @@ esp_gnugo_game_state_t *esp_gnugo_get_game_state()
 esp_gnugo_state_t esp_gnugo_get_state()
 {
     return game_state.state;
+}
+
+// We need a custom function for this (not sgfwrite)
+// because we would like to make atomic, deterministic
+// updates to the SGF file that reflect changes to the SGF
+// tree at known times.
+// I.E., if the player turns off the machine while the
+// computer is thinking, we do NOT want to wait for the computer
+// to play before we dump the SGF file and abort the process.
+// Otherwise, there would be an extra move played when the game
+// resumes.
+// On an embedded system, we also want to manipulate the filesystem
+// as little as possible. This allows us to keep all SGF manipulation
+// in-memory, rather than repeatedly updating the file contents on disk.
+// The dynamically allocated buffer pointed to by sgf_outptr
+// is only updated in esp_gnugo_update_board_state.
+
+void esp_gnugo_dump_sgf(char *sgfname)
+{
+    if (sgf_outbuf_len == 0)
+        return;
+    printf("Game saved to %s (%d bytes).\n", sgfname, sgf_outbuf_len);
+    FILE *f = fopen(sgfname, "w");
+    fwrite(sgf_outptr, sgf_outbuf_len, 1, f);
+    fclose(f);
 }

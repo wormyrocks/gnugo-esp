@@ -1498,6 +1498,22 @@ restore_node(SGFNode *node)
  */
 
 int
+writesgf_fd(SGFNode *root, FILE* outfile)
+{
+  sgf_write_header_reduced(root, 0);
+
+  sgf_column = 0;
+  unparse_game(outfile, root, 1);
+  
+  /* Remove "printed" marks so that the tree can be written multiple
+   * times.
+   */
+  restore_node(root);
+  
+  return 1;
+}
+
+int
 writesgf(SGFNode *root, const char *filename)
 {
   FILE *outfile;
@@ -1512,21 +1528,13 @@ writesgf(SGFNode *root, const char *filename)
     return 0;
   }
 
-  sgf_write_header_reduced(root, 0);
+  writesgf_fd(root, outfile);
 
-  sgf_column = 0;
-  unparse_game(outfile, root, 1);
   if (outfile != stdout)
     fclose(outfile);
-  
-  /* Remove "printed" marks so that the tree can be written multiple
-   * times.
-   */
-  restore_node(root);
-  
+    
   return 1;
 }
-
 
 #ifdef TEST_SGFPARSER
 int

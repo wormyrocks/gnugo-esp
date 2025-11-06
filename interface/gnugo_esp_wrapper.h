@@ -62,7 +62,6 @@ typedef enum
     COMMAND_RESTART,
     COMMAND_SAVE,
     COMMAND_FORCEQUIT,
-    COMMAND_SAVE_QUIT
 } go_command_t;
 
 // UI => Engine
@@ -99,4 +98,5 @@ int esp_gnugo_set_player_command(engine_signal_t);
  int esp_gnugo_pos_from_xy(int x, int y);
 esp_gnugo_game_state_t *esp_gnugo_get_game_state();
 esp_gnugo_state_t esp_gnugo_get_state();
+void esp_gnugo_dump_sgf(char* sgfname);
 #endif

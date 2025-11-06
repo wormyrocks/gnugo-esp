@@ -117,6 +117,7 @@ SGFNode *readsgffile(const char *filename);
 SGFNode *readsgffilefuseki(const char *filename, int moves_per_game);
 
 /* Write SGF tree to a file. */
+int writesgf_fd(SGFNode *root, FILE* fd);
 int writesgf(SGFNode *root, const char *filename);
 
 
