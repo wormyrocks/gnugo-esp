@@ -53,6 +53,9 @@ CHECK_FUNCTION_EXISTS(_vsnprintf HAVE__VSNPRINTF)
 CHECK_FUNCTION_EXISTS(g_vsnprintf HAVE_G_VSNPRINTF)
 
 IF (ESP_PLATFORM)
+cmake_minimum_required(VERSION 3.0)
+cmake_policy(PUSH)
+cmake_policy(SET CMP0026 OLD)
 SET(FIXED_BOARD_SIZE 9)
 SET(SIZEOF_LONG 4)
 component_compile_options(
@@ -86,6 +89,7 @@ add_custom_command(OUTPUT patterns/patterns.c
 add_custom_target(gen_patterns DEPENDS patterns/patterns.c)
 add_dependencies(${COMPONENT_LIB} gen_patterns)
 idf_build_set_property(MINIMAL_BUILD ON)
+cmake_policy(POP)
 ELSE()
 
 INCLUDE(CheckTypeSize)
