@@ -46,4 +46,7 @@ menu "GNU Go Configuration"
     config GO_MAX_LEVEL
         int "Maximum level"
         default 10
+    config ENABLE_REPL
+        bool "Enable REPL"
+        default y
 endmenu
