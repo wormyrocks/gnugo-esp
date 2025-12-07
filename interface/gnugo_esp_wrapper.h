@@ -90,7 +90,7 @@ typedef struct
 } esp_gnugo_game_init_t;
 
 esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t);
-void esp_gnugo_restart(void);
+void esp_gnugo_restart(int level);
 esp_gnugo_state_t esp_gnugo_get_computer_move();
 int esp_gnugo_set_player_command(engine_signal_t);
 // void esp_gnugo_set_level(int level);

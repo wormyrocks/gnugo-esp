@@ -125,7 +125,7 @@ static void esp_gnugo_update_board_state()
         update_cb(&game_state);
 }
 
-static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int requested_handicap)
+static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int requested_handicap, int requested_level)
 {
     gameinfo_clear(gameinfo);
     int did_load = 0;
@@ -152,6 +152,7 @@ static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int r
     // Start fresh
     if (!did_load)
     {
+        if (requested_level) set_level(requested_level);
         gameinfo->computer_player = (player_is_white ? BLACK : WHITE);
         gameinfo->handicap = requested_handicap;
         handicap = gameinfo->handicap;
@@ -185,10 +186,11 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params)
     autolevel_on = init_params.autolevel;
     update_cb = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
-    set_level(init_params.start_level);
     komi = init_params.komi;
     board_size = FIXED_BOARD_SIZE;
     choose_mc_patterns("montegnu_classic");
+    //choose_mc_patterns("uniform");
+    //choose_mc_patterns("mogo_classic");
     gnugo_clear_board(board_size);
     init_gnugo(init_params.memory_mb, init_params.random_seed);
     // outfilename: autosave file. default to stdout
@@ -200,7 +202,7 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params)
         strcpy(sgfname, init_params.outfile);
         printf("Game may be manually saved to %s\n", init_params.outfile);
     }
-    esp_gnugo_init_board_state(init_params.infile, init_params.player_is_white, init_params.requested_handicap);
+    esp_gnugo_init_board_state(init_params.infile, init_params.player_is_white, init_params.requested_handicap, init_params.start_level);
     return game_state.state;
 }
 
@@ -256,7 +258,7 @@ int esp_gnugo_set_player_command(engine_signal_t e)
         return ret;
     }
     case COMMAND_RESTART:
-        esp_gnugo_restart();
+        esp_gnugo_restart(game_state.level);
         return 1;
     case COMMAND_FORCEQUIT:
         return 1;
@@ -265,7 +267,7 @@ int esp_gnugo_set_player_command(engine_signal_t e)
     }
 }
 
-void esp_gnugo_restart()
+void esp_gnugo_restart(int requested_level)
 {
     passes = 0;
     game_is_over = 0;
@@ -274,7 +276,7 @@ void esp_gnugo_restart()
     sgftreeCreateHeaderNode(&sgftree, board_size, komi, i_p.requested_handicap);
     gameinfo_clear(gameinfo);
     // Restarting should ignore the input filename arg
-    esp_gnugo_init_board_state(NULL, i_p.player_is_white, i_p.requested_handicap);
+    esp_gnugo_init_board_state(NULL, i_p.player_is_white, i_p.requested_handicap, requested_level);
 }
 
 esp_gnugo_state_t esp_gnugo_get_computer_move()
