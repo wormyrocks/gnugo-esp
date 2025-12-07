@@ -131,13 +131,22 @@ static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int r
     int did_load = 0;
     if (infile)
     {
-        if (sgftree_readfile(&sgftree, infile))
+        struct stat info;
+        // TODO: currently we are manually preventing the case where a file of size 0 is psased into
+        // sgftree_readfile, but gnugo_esp should not be allowed to call exit(), which hangs the embedded system
+        // that or we need to wrap or trap the exit function somehow.
+        if (stat(infile, &info) >= 0 && info.st_size > 0)
         {
-            printf("Resumed game from %s.\n", infile);
-            did_load = (gameinfo_play_sgftree(gameinfo, &sgftree, NULL) != EMPTY);
-            if (did_load)
-                sgf_initialized = 1;
-            sgfOverwritePropertyInt(sgftree.root, "HA", gameinfo->handicap);
+            if (sgftree_readfile(&sgftree, infile))
+            {
+                printf("Resumed game from %s.\n", infile);
+                did_load = (gameinfo_play_sgftree(gameinfo, &sgftree, NULL) != EMPTY);
+                if (did_load)
+                    sgf_initialized = 1;
+                sgfOverwritePropertyInt(sgftree.root, "HA", gameinfo->handicap);
+            }
+        } else {
+            printf("Empty file. Starting new game.\n");
         }
     }
     // Start fresh
