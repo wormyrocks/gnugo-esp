@@ -8,8 +8,8 @@ menu "GNU Go Configuration"
         range 10 80
     config DEFAULT_GO_LEVEL
         int "Default level"
-        default 8
-        range 1 10
+        default 0
+        range 0 10
     config USE_TCM
         bool "Use ESP TCM for certain buffers"
         default n
