@@ -132,12 +132,12 @@
 #else
 #define _EMBEDDED_TCM 
 #endif
-#define DEFAULT_LEVEL CONFIG_DEFAULT_GO_LEVEL
+#define DEFAULT_LEVEL 0
 #else
 #define _EMBEDDED_BSS
 #define _EMBEDDED_TCM
 /* Default level (strength). Up to 10 supported */
-#define DEFAULT_LEVEL 10
+#define DEFAULT_LEVEL 0
 #endif
 
 #define _EMBEDDED_BSS_SMALL
