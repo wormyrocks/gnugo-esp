@@ -13,6 +13,9 @@
 
 #define GRID_HOSHI 10
 
+#define YOUR_NAME "You"
+#define CPU_NAME "CPU"
+
 // Engine => UI
 typedef enum
 {
@@ -89,8 +92,8 @@ typedef struct
     board_update_callback update_callback;
 } esp_gnugo_game_init_t;
 
-esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t);
-void esp_gnugo_restart(int level);
+esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t, bool*);
+void esp_gnugo_restart(int level, bool player_is_white);
 esp_gnugo_state_t esp_gnugo_get_computer_move();
 int esp_gnugo_set_player_command(engine_signal_t);
 // void esp_gnugo_set_level(int level);

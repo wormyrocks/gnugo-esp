@@ -6,10 +6,6 @@ menu "GNU Go Configuration"
         int "Stack size"
         default 80
         range 10 80
-    config DEFAULT_GO_LEVEL
-        int "Default level"
-        default 0
-        range 0 10
     config USE_TCM
         bool "Use ESP TCM for certain buffers"
         default n

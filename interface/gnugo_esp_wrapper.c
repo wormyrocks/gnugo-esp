@@ -102,7 +102,18 @@ static void esp_gnugo_update_board_state()
         }
         if (movenum)
         {
-            location_to_buffer(get_last_move(), (gameinfo->to_move == BLACK) ? game_state.white_last_move : game_state.black_last_move);
+            int last_move = get_last_move();
+            int last_player = get_last_player();
+            bool done = 0;
+        put_move:
+            location_to_buffer(last_move, (last_player == WHITE) ? game_state.white_last_move : game_state.black_last_move);
+            if (movenum > 1 && !done)
+            {
+                last_move = get_last_opponent_move(last_player);
+                last_player = OTHER_COLOR(last_player);
+                done = 1;
+                goto put_move;
+            }
         }
     }
     game_state.level = get_level();
@@ -125,6 +136,7 @@ static void esp_gnugo_update_board_state()
         update_cb(&game_state);
 }
 
+// Comment in 'infile' takes precedence over player_is_white.
 static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int requested_handicap, int requested_level)
 {
     gameinfo_clear(gameinfo);
@@ -140,19 +152,37 @@ static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int r
             if (sgftree_readfile(&sgftree, infile))
             {
                 printf("Resumed game from %s.\n", infile);
+                char *pw_name;
+                if (sgfGetCharProperty(sgftree.root, "PW", &pw_name))
+                {
+                    if (!strncmp(pw_name, CPU_NAME, sizeof(CPU_NAME)))
+                    {
+                        player_is_white = false;
+                    }
+                    else if (!strncmp(pw_name, YOUR_NAME, sizeof(YOUR_NAME)))
+                    {
+                        player_is_white = true;
+                        printf("Player is white.\n");
+                    }
+                }
                 did_load = (gameinfo_play_sgftree(gameinfo, &sgftree, NULL) != EMPTY);
                 if (did_load)
                     sgf_initialized = 1;
                 sgfOverwritePropertyInt(sgftree.root, "HA", gameinfo->handicap);
+                gameinfo->computer_player = (player_is_white ? BLACK : WHITE);
             }
-        } else {
+        }
+        else
+        {
             printf("Empty file. Starting new game.\n");
         }
     }
     // Start fresh
     if (!did_load)
     {
-        if (requested_level) set_level(requested_level);
+        printf("Starting new game with level %d\n", requested_level);
+        if (requested_level)
+            set_level(requested_level);
         gameinfo->computer_player = (player_is_white ? BLACK : WHITE);
         gameinfo->handicap = requested_handicap;
         handicap = gameinfo->handicap;
@@ -164,6 +194,7 @@ static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int r
         }
         sgf_initialized = 0;
         sgftreeCreateHeaderNode(&sgftree, board_size, komi, gameinfo->handicap);
+        sgfAddProperty(sgftree.root, "PW", player_is_white ? YOUR_NAME : CPU_NAME);
     }
     gameinfo->game_record = sgftree;
     white_score = 0;
@@ -178,7 +209,7 @@ void esp_gnugo_set_level(int level)
 }
 
 static esp_gnugo_game_init_t i_p;
-esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params)
+esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
 {
     memcpy(&i_p, &init_params, sizeof(esp_gnugo_game_init_t));
     assert(game_state.state == ESP_GNUGO_STATE_NOT_STARTED);
@@ -189,8 +220,8 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params)
     komi = init_params.komi;
     board_size = FIXED_BOARD_SIZE;
     choose_mc_patterns("montegnu_classic");
-    //choose_mc_patterns("uniform");
-    //choose_mc_patterns("mogo_classic");
+    // choose_mc_patterns("uniform");
+    // choose_mc_patterns("mogo_classic");
     gnugo_clear_board(board_size);
     init_gnugo(init_params.memory_mb, init_params.random_seed);
     // outfilename: autosave file. default to stdout
@@ -203,6 +234,8 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params)
         printf("Game may be manually saved to %s\n", init_params.outfile);
     }
     esp_gnugo_init_board_state(init_params.infile, init_params.player_is_white, init_params.requested_handicap, init_params.start_level);
+    
+    *player_is_white_ = (gameinfo->computer_player == BLACK);
     return game_state.state;
 }
 
@@ -258,7 +291,7 @@ int esp_gnugo_set_player_command(engine_signal_t e)
         return ret;
     }
     case COMMAND_RESTART:
-        esp_gnugo_restart(game_state.level);
+        esp_gnugo_restart(game_state.level, (gameinfo->computer_player == BLACK));
         return 1;
     case COMMAND_FORCEQUIT:
         return 1;
@@ -267,16 +300,17 @@ int esp_gnugo_set_player_command(engine_signal_t e)
     }
 }
 
-void esp_gnugo_restart(int requested_level)
+void esp_gnugo_restart(int requested_level, bool player_is_white)
 {
     passes = 0;
     game_is_over = 0;
     sgfFreeNode(sgftree.root);
     sgftree_clear(&sgftree);
     sgftreeCreateHeaderNode(&sgftree, board_size, komi, i_p.requested_handicap);
+    sgfAddProperty(sgftree.root, "PW", player_is_white ? YOUR_NAME : CPU_NAME);
     gameinfo_clear(gameinfo);
     // Restarting should ignore the input filename arg
-    esp_gnugo_init_board_state(NULL, i_p.player_is_white, i_p.requested_handicap, requested_level);
+    esp_gnugo_init_board_state(NULL, player_is_white, i_p.requested_handicap, requested_level);
 }
 
 esp_gnugo_state_t esp_gnugo_get_computer_move()
@@ -326,6 +360,7 @@ void esp_gnugo_dump_sgf(char *sgfname)
         return;
     printf("Game saved to %s (%d bytes).\n", sgfname, sgf_outbuf_len);
     FILE *f = fopen(sgfname, "w");
+    // TODO: error handling here
     fwrite(sgf_outptr, sgf_outbuf_len, 1, f);
     fclose(f);
 }
