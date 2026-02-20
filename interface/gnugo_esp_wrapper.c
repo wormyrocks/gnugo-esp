@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 #define GRID_POINTS FIXED_BOARD_SIZE
 
