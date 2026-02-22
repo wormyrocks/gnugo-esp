@@ -11,7 +11,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#define GRID_POINTS FIXED_BOARD_SIZE
+#define GRID_POINTS DEFAULT_BOARD_SIZE
 
 static Gameinfo gameinfo_;
 static Gameinfo *gameinfo = &gameinfo_;
@@ -219,7 +219,7 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *playe
     update_cb = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
     komi = init_params.komi;
-    board_size = FIXED_BOARD_SIZE;
+    board_size = DEFAULT_BOARD_SIZE;
     choose_mc_patterns("montegnu_classic");
     // choose_mc_patterns("uniform");
     // choose_mc_patterns("mogo_classic");

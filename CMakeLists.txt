@@ -79,8 +79,8 @@ add_custom_command(OUTPUT patterns/patterns.c
     # Call CMake again directly - ugly but necessary because we need to
     # build the pattern generators for target architecture
     WORKING_DIRECTORY ${BUILD_DIR}
-    COMMAND ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=${CONFIG_DISABLE_MONTE_CARLO} -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
-    COMMAND ${CMAKE_COMMAND} --build .build_patterns -t patterns -j
+    COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=${CONFIG_DISABLE_MONTE_CARLO} -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
+    COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} --build .build_patterns -t patterns -j
     COMMAND ${CMAKE_COMMAND} -E copy .build_patterns/patterns/*.c ${CMAKE_CURRENT_SOURCE_DIR}/patterns
     COMMENT "Generated pattern database."
 )
