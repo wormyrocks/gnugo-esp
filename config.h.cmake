@@ -140,7 +140,7 @@
 #define DEFAULT_LEVEL 0
 #endif
 
-#define _EMBEDDED_BSS_SMALL
+#define _EMBEDDED_BSS_SMALL _EMBEDDED_BSS
 
 #ifdef FIXED_BOARD_SIZE
 #define _CONST_DECL const
