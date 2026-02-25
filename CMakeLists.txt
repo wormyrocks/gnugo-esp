@@ -19,7 +19,6 @@ idf_component_register(
     ${BUILD_DIR}
     EXCLUDE_SRCS
     "interface/main.c"
-    "interface/play_gtp.c"
     "interface/play_test.c"
     "patterns/mkpat.c"
     "patterns/mkeyes.c"

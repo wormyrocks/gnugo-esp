@@ -2,6 +2,7 @@
 #define _ESP_WRAPPER_H
 #include "stdint.h"
 #include "stdbool.h"
+#include <stdio.h>
 
 #define GRID_EMPTY 0
 #define GRID_WHITE 1
@@ -102,4 +103,5 @@ int esp_gnugo_set_player_command(engine_signal_t);
 esp_gnugo_game_state_t *esp_gnugo_get_game_state();
 esp_gnugo_state_t esp_gnugo_get_state();
 void esp_gnugo_dump_sgf(char* sgfname);
+void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output);
 #endif

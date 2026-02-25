@@ -1,6 +1,7 @@
 #include "gnugo_esp_wrapper.h"
 #include "gnugo.h"
 #include "gg_utils.h"
+#include "interface.h"
 #include "board.h"
 #include "liberty.h"
 #include "assert.h"
@@ -365,3 +366,12 @@ void esp_gnugo_dump_sgf(char *sgfname)
     fwrite(sgf_outptr, sgf_outbuf_len, 1, f);
     fclose(f);
 }
+
+void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output)
+{
+    board_size = DEFAULT_BOARD_SIZE;
+    gnugo_clear_board(board_size);
+    init_gnugo(8, 0);
+    play_gtp(gtp_input, gtp_output, NULL, 0);
+}
+
