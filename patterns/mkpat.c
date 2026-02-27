@@ -169,6 +169,7 @@ static char constraint_diagram[MAX_BOARD+2][MAX_BOARD+3];
 /* stuff to maintain info about patterns while reading */
 static char *prefix;
 static struct pattern pattern[MAXPATNO]; /* accumulate the patterns into here */
+static struct pattern_extents extents[MAXPATNO]; /* accumulate the pattern extents into here */
 static char pattern_names[MAXPATNO][MAXNAME]; /* with optional names here, */
 static int num_attributes;
 static struct pattern_attribute attributes[MAXPATNO * NUM_ATTRIBUTES];
@@ -668,10 +669,12 @@ find_extents(void)
    * of the pattern like any other relative co-ord.
    */
 
-  pattern[patno].mini = mini - ci;
-  pattern[patno].minj = minj - cj;
-  pattern[patno].maxi = maxi - ci;
-  pattern[patno].maxj = maxj - cj;
+  extents[patno].mini = mini - ci;
+  extents[patno].minj = minj - cj;
+  extents[patno].maxi = maxi - ci;
+  extents[patno].maxj = maxj - cj;
+  extents[patno].height = extents[patno].maxi - extents[patno].mini;
+  extents[patno].width  = extents[patno].maxj - extents[patno].minj;
 }
 
 
@@ -692,7 +695,7 @@ write_to_dfa(int index)
   pattern[index].name = &(pattern_names[index][0]);
 
   /* First we create the string from the actual pattern. */
-  pattern_2_string(pattern + index, elements, str, ci, cj);
+  pattern_2_string(pattern + index, extents + index, elements, str, ci, cj);
 
   if (verbose)
     fprintf(stderr, "Add   :%s\n", pattern[index].name);
@@ -2249,60 +2252,20 @@ write_attributes(FILE *outfile)
   fprintf(outfile, "\n#endif\n};\n\n");
 }
 
-#ifdef FIXED_BOARD_SIZE
-// Copied out of matchpat.c
-static int pcnt=0;
-static int sz = FIXED_BOARD_SIZE;
-static void fixup_patterns_for_board_size(struct pattern *pattern)
-{
-    if (pattern->edge_constraints != 0) {
-      /* If the patterns have been fixed up for a different board size
-       * earlier, we need to undo the modifications that were done
-       * below before we do them anew. The first time this function is
-       * called, this step is effectively a no-op.
-       */
-      
-      if (pattern->edge_constraints & NORTH_EDGE)
-	pattern->maxi = pattern->mini + pattern->height;
-	
-      if (pattern->edge_constraints & SOUTH_EDGE)
-	pattern->mini = pattern->maxi - pattern->height;
-	
-      if (pattern->edge_constraints & WEST_EDGE)
-	pattern->maxj = pattern->minj + pattern->width;
-      
-      if (pattern->edge_constraints & EAST_EDGE)
-	pattern->minj = pattern->maxj - pattern->width;
-      
-      /* we extend the pattern in the direction opposite the constraint,
-       * such that maxi (+ve) - mini (-ve) = sz-1
-       * Note : the pattern may be wider than the board, so
-       * we need to be a bit careful !
-       */
-      
-      if (pattern->edge_constraints & NORTH_EDGE)
-	if (pattern->maxi < (sz-1) + pattern->mini)
-	  pattern->maxi = (sz-1) + pattern->mini;
-      
-      if (pattern->edge_constraints & SOUTH_EDGE)
-	if (pattern->mini > pattern->maxi - (sz-1))
-	  pattern->mini = pattern->maxi - (sz-1);
-      
-      if (pattern->edge_constraints & WEST_EDGE)
-	if (pattern->maxj <  (sz-1) + pattern->minj)
-	  pattern->maxj = (sz-1) + pattern->minj;
-      
-      if (pattern->edge_constraints & EAST_EDGE)
-	if (pattern->minj > pattern->maxj - (sz-1))
-	  pattern->minj = pattern->maxj - (sz-1);
-    }
-  }
-#endif
-
 /* Sort and write out the patterns. */
 static void
 write_patterns(FILE *outfile)
 {
+  // Write (non-const) extents array out before each pattern array
+  fprintf(outfile, "static struct pattern_extents %s_extents[%d] = {\n", prefix, patno);
+  for (int j_=0; j_ < patno; j_++){
+    struct pattern_extents *e = extents+j_;
+    fprintf(outfile, "{%d,%d,%d,%d,%d,%d},",
+      e->mini, e->minj, e->maxi, e->maxj, e->height, e->width
+    );
+  }
+  fprintf(outfile, "};\n\n");
+
   int j;
 
   /* Write out the patterns. */
@@ -2342,27 +2305,19 @@ write_patterns(FILE *outfile)
       continue;
     }
 
-#ifdef FIXED_BOARD_SIZE
-    fixup_patterns_for_board_size(p);
-#endif
     /* p->min{i,j} and p->max{i,j} are the maximum extent of the elements,
      * including any rows of '?' which do not feature in the elements list.
      * ie they are the positions of the topleft and bottomright corners of
      * the pattern, relative to the pattern origin. These just transform same
      * as the elements.
      */
-    fprintf(outfile, "  {%s%d,%d,%d, \"%s\",%d,%d,%d,%d,%d,%d,0x%x,%d",
+    fprintf(outfile, "  {%s%d,%d,%d,\"%s\",0x%x,%d",
 	    prefix, j,
 	    p->patlen,
 	    p->trfno,
 	    pattern_names[j],
-	    p->mini, p->minj,
-	    p->maxi, p->maxj,
-	    p->maxi - p->mini,   /* height */
-	    p->maxj - p->minj,   /* width  */
 	    p->edge_constraints,
 	    p->move_offset);
-
 
 #if GRID_OPT
     fprintf(outfile, ",\n    {");
@@ -2407,7 +2362,7 @@ write_patterns(FILE *outfile)
     return;
 
   /* Add a final empty entry. */
-  fprintf(outfile, "  {NULL, 0,0,NULL,0,0,0,0,0,0,0,0");
+  fprintf(outfile, "  {NULL, 0,0,NULL,0,0");
 #if GRID_OPT
   fprintf(outfile, ",{0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0}");
 #endif
@@ -2436,18 +2391,14 @@ write_pattern_db(FILE *outfile)
   /* Write out the pattern database. */
   fprintf(outfile, "\n");
   fprintf(outfile, "struct pattern_db %s_db = {\n", prefix);
-#ifdef FIXED_BOARD_SIZE
-  fprintf(outfile, "  %d,\n", FIXED_BOARD_SIZE); 
-#else
   fprintf(outfile, "  -1,\n");
-#endif
   fprintf(outfile, "  %d,\n", fixed_anchor);
   fprintf(outfile, "  %s\n", prefix);
   if (database_type == DB_DFA)
-    fprintf(outfile, " ,& dfa_%s\n", prefix); /* pointer to the wired dfa */
+    fprintf(outfile, " ,& dfa_%s,\n", prefix); /* pointer to the wired dfa */
   else
-    fprintf(outfile, " , NULL\n"); /* pointer to a possible dfa */
-
+    fprintf(outfile, " , NULL,\n"); /* pointer to a possible dfa */
+  fprintf(outfile, "%s_extents", prefix);
   fprintf(outfile, "};\n");
 }
 

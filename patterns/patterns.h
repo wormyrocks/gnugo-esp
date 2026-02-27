@@ -226,19 +226,21 @@ struct pattern_attribute {
 
 #endif
 
+// This struct is the same as mini, minj, maxi, maxj,
+// but needs to get filled at runtime. If we separate this out
+// the rest of the pattern struct can be declared 'const'.
+struct pattern_extents {
+  int mini, minj, maxi, maxj, height, width;
+};
 
 /*
  * Each pattern as a whole is compiled to an instance of this structure.
  */
 struct pattern {
-  _CONST_DECL struct patval *patn;  /* array of elements */
+  struct patval *patn;  /* array of elements */
   int patlen;           /* number of elements */
   int trfno;            /* number of transformations (rotations and reflections) */
   const char *name;     /* short description of pattern (optional) */
-
-  int mini, minj;       /* min and max (relative to anchor) extent of ... */
-  int maxi, maxj;       /* ...the pattern */
-  int height, width;    /* differences between max and min extents */
   unsigned int edge_constraints; /* and combinations of NORTH, EAST etc.
 				  * for edges */
 
@@ -257,7 +259,7 @@ struct pattern {
   float value;
 
   /* Pattern attributes like shape, followup etc. */
-  _CONST_DECL struct pattern_attribute *attributes;
+  struct pattern_attribute *attributes;
 
   int autohelper_flag;  /* whether autohelper has constraint and/or action */
   pattern_helper_fn_ptr helper;  /* helper function, or NULL */
@@ -275,12 +277,12 @@ struct pattern {
 #endif
 };
 
-
 struct pattern_db {
   int fixed_for_size;
   const int fixed_anchor;
   _CONST_DECL struct pattern *patterns;
   _CONST_DECL struct dfa_rt *pdfa;
+  struct pattern_extents *extents;
 };
 
 
@@ -356,11 +358,8 @@ extern struct corner_db joseki_db;
 #ifndef CONFIG_DISABLE_MONTE_CARLO
 extern _CONST_DECL struct mc_pattern_database mc_pattern_databases[];
 #endif
-#if FIXED_BOARD_SIZE == 9
-#else
 extern _CONST_DECL struct fullboard_pattern fuseki19[];
 extern _CONST_DECL struct fullboard_pattern fuseki13[];
-#endif
 extern _CONST_DECL struct fullboard_pattern fuseki9[];
 
 struct corner_db;

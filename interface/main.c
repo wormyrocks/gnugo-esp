@@ -362,11 +362,7 @@ main(int argc, char *argv[])
   int seed = 0;
   int seed_specified = 0;
   
-  #ifndef FIXED_BOARD_SIZE
   int requested_boardsize = -1;
-  #else
-  int requested_boardsize = FIXED_BOARD_SIZE;
-  #endif
 
   sgftree_clear(&sgftree);
   gameinfo_clear(&gameinfo);

@@ -29,11 +29,7 @@
 #include "sgftree.h"
 #include "winsocket.h"
 
-#ifdef FIXED_BOARD_SIZE
-#define MAX_BOARD FIXED_BOARD_SIZE
-#else
 #define MAX_BOARD 19
-#endif
 
 /* This type is used to store each intersection on the board.
  *

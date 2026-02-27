@@ -118,7 +118,7 @@
 
 #cmakedefine CONFIG_DISABLE_MONTE_CARLO 1
 
-#cmakedefine FIXED_BOARD_SIZE ${FIXED_BOARD_SIZE}
+#cmakedefine CONST_PATTERNS 1
 
 #ifdef ESP_PLATFORM
 #include "esp_attr.h"
@@ -142,7 +142,7 @@
 
 #define _EMBEDDED_BSS_SMALL _EMBEDDED_BSS
 
-#ifdef FIXED_BOARD_SIZE
+#ifdef CONST_PATTERNS
 #define _CONST_DECL const
 #define _CONST_DECLS "const"
 #else 

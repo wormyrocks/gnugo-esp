@@ -221,7 +221,9 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *playe
     undo_allowed = init_params.undo_allowed;
     komi = init_params.komi;
     board_size = DEFAULT_BOARD_SIZE;
+#ifndef CONFIG_DISABLE_MONTE_CARLO
     choose_mc_patterns("montegnu_classic");
+#endif
     // choose_mc_patterns("uniform");
     // choose_mc_patterns("mogo_classic");
     gnugo_clear_board(board_size);

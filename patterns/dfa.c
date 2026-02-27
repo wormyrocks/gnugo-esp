@@ -1054,7 +1054,7 @@ dfa_rotate_string(char *rotated_string, const char *string, int transformation)
  * of size greater than DFA_MAX_ORDER.
  */
 void
-pattern_2_string(struct pattern *pat, struct patval_b *elements,
+pattern_2_string(struct pattern *pat, struct pattern_extents *extents, struct patval_b *elements,
 		 char *str, int ci, int cj)
 {
   char work_space[DFA_MAX_BOARD * 4][DFA_MAX_BOARD * 4];
@@ -1079,15 +1079,15 @@ pattern_2_string(struct pattern *pat, struct patval_b *elements,
       work_space[i][j] = '$';
 
   /* pattern mask */
-  for (i = pat->mini + m; i != pat->maxi + m + 1; i++)
-    for (j = pat->minj + n; j != pat->maxj + n + 1; j++)
+  for (i = extents->mini + m; i != extents->maxi + m + 1; i++)
+    for (j = extents->minj + n; j != extents->maxj + n + 1; j++)
       work_space[i][j] = '?';
 
   /* more advanced edge constraints */
 
   /* South constraint */
   if (pat->edge_constraints & SOUTH_EDGE) {
-    for (i = m + pat->maxi + 1; i != DFA_MAX_BOARD * 3; i++)
+    for (i = m + extents->maxi + 1; i != DFA_MAX_BOARD * 3; i++)
       for (j = 0; j != DFA_MAX_BOARD * 3; j++)
 	work_space[i][j] = '-';
   }
@@ -1095,13 +1095,13 @@ pattern_2_string(struct pattern *pat, struct patval_b *elements,
   /* East constraint */
   if (pat->edge_constraints & EAST_EDGE) {
     for (i = 0; i != DFA_MAX_BOARD * 3; i++)
-      for (j = n + pat->maxj + 1; j != DFA_MAX_BOARD * 3; j++)
+      for (j = n + extents->maxj + 1; j != DFA_MAX_BOARD * 3; j++)
 	work_space[i][j] = '|';
   }
   
   /* North constraint */
   if (pat->edge_constraints & NORTH_EDGE) {
-    for (i = 0; i != m + pat->mini; i++)
+    for (i = 0; i != m + extents->mini; i++)
       for (j = 0; j != DFA_MAX_BOARD * 4; j++)
 	work_space[i][j] = '-';
   }
@@ -1109,14 +1109,14 @@ pattern_2_string(struct pattern *pat, struct patval_b *elements,
   /* West constraint */
   if (pat->edge_constraints & WEST_EDGE) {
     /* take care not to erase the south edge constraint */
-    for (i = 0; i != m + pat->maxi + 1; i++)
-      for (j = 0; j != n + pat->minj; j++)
+    for (i = 0; i != m + extents->maxi + 1; i++)
+      for (j = 0; j != n + extents->minj; j++)
 	work_space[i][j] = '|';
 
     /* complete the last corner only if necessary */
     if (!(pat->edge_constraints & SOUTH_EDGE)) {
-      for (i = m + pat->maxi + 1; i != DFA_MAX_BOARD * 3; i++)
-	for (j = 0; j != n + pat->minj; j++)
+      for (i = m + extents->maxi + 1; i != DFA_MAX_BOARD * 3; i++)
+	for (j = 0; j != n + extents->minj; j++)
 	  work_space[i][j] = '|';
     }
   }
@@ -1182,13 +1182,13 @@ pattern_2_string(struct pattern *pat, struct patval_b *elements,
       j += DFA_BASE;
     i = (spiral[k][0] - j) / DFA_BASE;
 
-    if (i == pat->maxi)
+    if (i == extents->maxi)
       borders &= ~SOUTH_EDGE;
-    if (i == pat->mini)
+    if (i == extents->mini)
       borders &= ~NORTH_EDGE;
-    if (j == pat->maxj)
+    if (j == extents->maxj)
       borders &= ~EAST_EDGE;
-    if (j == pat->minj)
+    if (j == extents->minj)
       borders &= ~WEST_EDGE;
     
     assert(m + i < DFA_MAX_BOARD * 3 && m + i < DFA_MAX_BOARD * 3);
@@ -1198,13 +1198,13 @@ pattern_2_string(struct pattern *pat, struct patval_b *elements,
     if (strchr("XOxo.,a!", str[k]))
       to_test--;
     if (strchr("#|-+", str[k])) {
-      if (i > pat->maxi)
+      if (i > extents->maxi)
 	edges &= ~SOUTH_EDGE;
-      if (i < pat->mini)
+      if (i < extents->mini)
 	edges &= ~NORTH_EDGE;
-      if (j > pat->maxj)
+      if (j > extents->maxj)
 	edges &= ~EAST_EDGE;
-      if (j < pat->minj)
+      if (j < extents->minj)
 	edges &= ~WEST_EDGE;
     }
   }

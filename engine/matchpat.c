@@ -136,10 +136,10 @@ report_pattern_profiling()
 
 /* Forward declarations. */
 
-static void fixup_patterns_for_board_size(struct pattern *pattern);
+static void fixup_patterns_for_board_size(struct pattern *pattern, struct pattern_extents * extents);
 static void prepare_for_match(int color);
 static void do_matchpat(int anchor, matchpat_callback_fn_ptr callback,
-			int color, struct pattern *database,
+			int color, struct pattern *database, struct pattern_extents *extents,
 			void *callback_data, signed char goal[BOARDMAX]);
 static void matchpat_loop(matchpat_callback_fn_ptr callback, 
 			  int color, int anchor,
@@ -215,14 +215,11 @@ static unsigned int class_mask[NUM_DRAGON_STATUS][3];
  */
 
 static void
-fixup_patterns_for_board_size(struct pattern *pattern)
+fixup_patterns_for_board_size(struct pattern *pattern, struct pattern_extents * extentsdb)
 {
-#ifdef FIXED_BOARD_SIZE
-  abort();
-#endif
-  for (; pattern->patn; ++pattern)
+  struct pattern_extents *extents = extentsdb;
+  for (; pattern->patn; ++pattern) {
     if (pattern->edge_constraints != 0) {
-
       /* If the patterns have been fixed up for a different board size
        * earlier, we need to undo the modifications that were done
        * below before we do them anew. The first time this function is
@@ -230,16 +227,16 @@ fixup_patterns_for_board_size(struct pattern *pattern)
        */
       
       if (pattern->edge_constraints & NORTH_EDGE)
-	pattern->maxi = pattern->mini + pattern->height;
+	extents->maxi = extents->mini + extents->height;
 	
       if (pattern->edge_constraints & SOUTH_EDGE)
-	pattern->mini = pattern->maxi - pattern->height;
+	extents->mini = extents->maxi - extents->height;
 	
       if (pattern->edge_constraints & WEST_EDGE)
-	pattern->maxj = pattern->minj + pattern->width;
+	extents->maxj = extents->minj + extents->width;
       
       if (pattern->edge_constraints & EAST_EDGE)
-	pattern->minj = pattern->maxj - pattern->width;
+	extents->minj = extents->maxj - extents->width;
       
       /* we extend the pattern in the direction opposite the constraint,
        * such that maxi (+ve) - mini (-ve) = board_size-1
@@ -248,21 +245,24 @@ fixup_patterns_for_board_size(struct pattern *pattern)
        */
       
       if (pattern->edge_constraints & NORTH_EDGE)
-	if (pattern->maxi < (board_size-1) + pattern->mini)
-	  pattern->maxi = (board_size-1) + pattern->mini;
+	if (extents->maxi < (board_size-1) + extents->mini)
+	  extents->maxi = (board_size-1) + extents->mini;
       
       if (pattern->edge_constraints & SOUTH_EDGE)
-	if (pattern->mini > pattern->maxi - (board_size-1))
-	  pattern->mini = pattern->maxi - (board_size-1);
+	if (extents->mini > extents->maxi - (board_size-1))
+	  extents->mini = extents->maxi - (board_size-1);
       
       if (pattern->edge_constraints & WEST_EDGE)
-	if (pattern->maxj <  (board_size-1) + pattern->minj)
-	  pattern->maxj = (board_size-1) + pattern->minj;
+	if (extents->maxj <  (board_size-1) + extents->minj)
+	  extents->maxj = (board_size-1) + extents->minj;
       
       if (pattern->edge_constraints & EAST_EDGE)
-	if (pattern->minj > pattern->maxj - (board_size-1))
-	  pattern->minj = pattern->maxj - (board_size-1);
+	if (extents->minj > extents->maxj - (board_size-1))
+	  extents->minj = extents->maxj - (board_size-1);
     }
+    extents++;
+  }
+  
 }
 
 
@@ -303,7 +303,7 @@ prepare_for_match(int color)
 
 static void
 do_matchpat(int anchor, matchpat_callback_fn_ptr callback, int color,
-	    struct pattern *pattern, void *callback_data,
+	    struct pattern *pattern, struct pattern_extents *extents, void *callback_data,
 	    signed char goal[BOARDMAX]) 
 {
   const int anchor_test = board[anchor] ^ color;  /* see below */
@@ -338,8 +338,11 @@ do_matchpat(int anchor, matchpat_callback_fn_ptr callback, int color,
 
   /* Try each pattern - NULL pattern marks end of list. Assume at least 1 */
   gg_assert(pattern->patn);
-
+  // struct pattern_extents * extent = extents;
+  int extnum = 0;
   do {
+    struct pattern_extents * extent = &extents[extnum];
+    extnum++;
     /*
      * These days we always match all patterns.
      */
@@ -379,7 +382,6 @@ do_matchpat(int anchor, matchpat_callback_fn_ptr callback, int color,
       }
       
       /* try each orientation transformation. Assume at least 1 */
-
       do {
 
 #if PROFILE_PATTERNS
@@ -408,9 +410,9 @@ do_matchpat(int anchor, matchpat_callback_fn_ptr callback, int color,
 	 */
 	{
 	  int mi, mj, xi, xj;
-	  
-	  TRANSFORM2(pattern->mini, pattern->minj, &mi, &mj, ll);
-	  TRANSFORM2(pattern->maxi, pattern->maxj, &xi, &xj, ll);
+
+	  TRANSFORM2(extent->mini, extent->minj, &mi, &mj, ll);
+	  TRANSFORM2(extent->maxi, extent->maxj, &xi, &xj, ll);
 
 	  /* {min,max}{i,j} are the appropriate corners of the original
 	   * pattern, Once we transform, {m,x}{i,j} are still corners,
@@ -508,7 +510,7 @@ matchpat_loop(matchpat_callback_fn_ptr callback, int color, int anchor,
   
   for (pos = BOARDMIN; pos < BOARDMAX; pos++) {
     if (board[pos] == anchor && (!anchor_in_goal || goal[pos] != 0))
-      do_matchpat(pos, callback, color, pdb->patterns,
+      do_matchpat(pos, callback, color, pdb->patterns, pdb->extents,
 		  callback_data, goal);
   }
 }
@@ -861,7 +863,7 @@ matchpat_goal_anchor(matchpat_callback_fn_ptr callback, int color,
 
   /* check board size */
   if (pdb->fixed_for_size != board_size) {
-    fixup_patterns_for_board_size(pdb->patterns);
+    fixup_patterns_for_board_size(pdb->patterns, pdb->extents);
     pdb->fixed_for_size = board_size;
   }
 

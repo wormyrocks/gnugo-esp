@@ -103,7 +103,7 @@ void dump_dfa(FILE *f, dfa_t *pdfa);
 struct pattern;
 
 /* Conversion between a GNU Go pattern struct into a DFA string. */
-void pattern_2_string(struct pattern *pat, struct patval_b *elements,
+void pattern_2_string(struct pattern *pat, struct pattern_extents *extents, struct patval_b *elements,
 		      char *str, int ci, int cj);
 void dfa_rotate_string(char *strrot, const char *str, int ll);
 

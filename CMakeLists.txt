@@ -53,7 +53,6 @@ CHECK_FUNCTION_EXISTS(_vsnprintf HAVE__VSNPRINTF)
 CHECK_FUNCTION_EXISTS(g_vsnprintf HAVE_G_VSNPRINTF)
 
 IF (ESP_PLATFORM)
-SET(FIXED_BOARD_SIZE 9)
 SET(SIZEOF_LONG 4)
 component_compile_options(
     -Wno-misleading-indentation
@@ -70,6 +69,7 @@ component_compile_options(
     -Wno-old-style-definition
 )
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+ADD_DEFINITIONS(-DCONST_PATTERNS)
 # times.h is bad in picolibc
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
                ${BUILD_DIR}/config.h)
@@ -78,7 +78,7 @@ add_custom_command(OUTPUT patterns/patterns.c
     # Call CMake again directly - ugly but necessary because we need to
     # build the pattern generators for target architecture
     WORKING_DIRECTORY ${BUILD_DIR}
-    COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=${CONFIG_DISABLE_MONTE_CARLO} -DFIXED_BOARD_SIZE=${FIXED_BOARD_SIZE} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
+    COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} -B .build_patterns -DCONST_PATTERNS=${CONFIG_CONST_PATTERNS} -DDISABLE_MONTE_CARLO=${CONFIG_DISABLE_MONTE_CARLO} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
     COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} --build .build_patterns -t patterns -j
     COMMAND ${CMAKE_COMMAND} -E copy .build_patterns/patterns/*.c ${CMAKE_CURRENT_SOURCE_DIR}/patterns
     COMMENT "Generated pattern database."
