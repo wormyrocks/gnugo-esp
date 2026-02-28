@@ -91,6 +91,7 @@ typedef struct
     char *infile;
     char *outfile;
     board_update_callback update_callback;
+    int board_size;
 } esp_gnugo_game_init_t;
 
 esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t, bool*);

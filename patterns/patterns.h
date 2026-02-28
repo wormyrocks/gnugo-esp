@@ -230,7 +230,7 @@ struct pattern_attribute {
 // but needs to get filled at runtime. If we separate this out
 // the rest of the pattern struct can be declared 'const'.
 struct pattern_extents {
-  signed char mini, minj, maxi, maxj, height, width;
+  signed char mini, minj, maxi, maxj;
 };
 
 /*
@@ -241,6 +241,8 @@ struct pattern {
   int patlen;           /* number of elements */
   int trfno;            /* number of transformations (rotations and reflections) */
   const char *name;     /* short description of pattern (optional) */
+  signed char width;
+  signed char height;
   unsigned int edge_constraints; /* and combinations of NORTH, EAST etc.
 				  * for edges */
 

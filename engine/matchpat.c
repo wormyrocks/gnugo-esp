@@ -227,16 +227,16 @@ fixup_patterns_for_board_size(struct pattern *pattern, struct pattern_extents * 
        */
       
       if (pattern->edge_constraints & NORTH_EDGE)
-	extents->maxi = extents->mini + extents->height;
+	extents->maxi = extents->mini + pattern->height;
 	
       if (pattern->edge_constraints & SOUTH_EDGE)
-	extents->mini = extents->maxi - extents->height;
+	extents->mini = extents->maxi - pattern->height;
 	
       if (pattern->edge_constraints & WEST_EDGE)
-	extents->maxj = extents->minj + extents->width;
+	extents->maxj = extents->minj + pattern->width;
       
       if (pattern->edge_constraints & EAST_EDGE)
-	extents->minj = extents->maxj - extents->width;
+	extents->minj = extents->maxj - pattern->width;
       
       /* we extend the pattern in the direction opposite the constraint,
        * such that maxi (+ve) - mini (-ve) = board_size-1
@@ -338,7 +338,6 @@ do_matchpat(int anchor, matchpat_callback_fn_ptr callback, int color,
 
   /* Try each pattern - NULL pattern marks end of list. Assume at least 1 */
   gg_assert(pattern->patn);
-  // struct pattern_extents * extent = extents;
   int extnum = 0;
   do {
     struct pattern_extents * extent = &extents[extnum];

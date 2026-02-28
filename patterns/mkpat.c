@@ -673,8 +673,8 @@ find_extents(void)
   extents[patno].minj = minj - cj;
   extents[patno].maxi = maxi - ci;
   extents[patno].maxj = maxj - cj;
-  extents[patno].height = extents[patno].maxi - extents[patno].mini;
-  extents[patno].width  = extents[patno].maxj - extents[patno].minj;
+  pattern[patno].height = extents[patno].maxi - extents[patno].mini;
+  pattern[patno].width  = extents[patno].maxj - extents[patno].minj;
 }
 
 
@@ -2256,15 +2256,17 @@ write_attributes(FILE *outfile)
 static void
 write_patterns(FILE *outfile)
 {
+  if (database_type != DB_CORNER) {
   // Write (non-const) extents array out before each pattern array
   fprintf(outfile, "static struct pattern_extents %s_extents[%d] = {\n", prefix, patno);
   for (int j_=0; j_ < patno; j_++){
     struct pattern_extents *e = extents+j_;
-    fprintf(outfile, "{%d,%d,%d,%d,%d,%d},",
-      e->mini, e->minj, e->maxi, e->maxj, e->height, e->width
+    fprintf(outfile, "{%d,%d,%d,%d},",
+      e->mini, e->minj, e->maxi, e->maxj
     );
   }
   fprintf(outfile, "};\n\n");
+  }
 
   int j;
 
@@ -2284,7 +2286,7 @@ write_patterns(FILE *outfile)
 	      p->class, pattern_names[j]);
 
       if (attributes_needed) {
-	fprintf(outfile, "attributes+%d,",
+	fprintf(outfile, "(struct pattern_attribute*)(attributes+%d),",
 		(int) (p->attributes ? p->attributes - attributes : 0));
       }
       else
@@ -2311,11 +2313,13 @@ write_patterns(FILE *outfile)
      * the pattern, relative to the pattern origin. These just transform same
      * as the elements.
      */
-    fprintf(outfile, "  {%s%d,%d,%d,\"%s\",0x%x,%d",
+    fprintf(outfile, "  {(struct patval*)(%s%d),%d,%d,\"%s\",%d,%d,0x%x,%d",
 	    prefix, j,
 	    p->patlen,
 	    p->trfno,
 	    pattern_names[j],
+	    p->width,
+	    p->height,
 	    p->edge_constraints,
 	    p->move_offset);
 
@@ -2336,7 +2340,7 @@ write_patterns(FILE *outfile)
     fprintf(outfile, ", 0x%x,%f,", p->class, p->value);
 
     if (attributes_needed) {
-      fprintf(outfile, "attributes+%d,",
+      fprintf(outfile, "(struct pattern_attribute*)(attributes+%d),",
 	      (int) (p->attributes ? p->attributes - attributes : 0));
     }
     else
@@ -2362,7 +2366,7 @@ write_patterns(FILE *outfile)
     return;
 
   /* Add a final empty entry. */
-  fprintf(outfile, "  {NULL, 0,0,NULL,0,0");
+  fprintf(outfile, "  {NULL,0,0,NULL,0,0,0,0");
 #if GRID_OPT
   fprintf(outfile, ",{0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0}");
 #endif

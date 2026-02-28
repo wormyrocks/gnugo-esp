@@ -12,7 +12,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#define GRID_POINTS DEFAULT_BOARD_SIZE
+#define GRID_POINTS 9
 
 static Gameinfo gameinfo_;
 static Gameinfo *gameinfo = &gameinfo_;
@@ -213,6 +213,10 @@ void esp_gnugo_set_level(int level)
 static esp_gnugo_game_init_t i_p;
 esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
 {
+    debug = DEBUG_TOP_MOVES | DEBUG_SCORING | DEBUG_LOADSGF ;
+    board_size = 9;
+    printboard = 1;
+    showstatistics = 1;
     memcpy(&i_p, &init_params, sizeof(esp_gnugo_game_init_t));
     assert(game_state.state == ESP_GNUGO_STATE_NOT_STARTED);
     passes = 0;
@@ -220,7 +224,6 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *playe
     update_cb = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
     komi = init_params.komi;
-    board_size = DEFAULT_BOARD_SIZE;
 #ifndef CONFIG_DISABLE_MONTE_CARLO
     choose_mc_patterns("montegnu_classic");
 #endif
