@@ -211,13 +211,9 @@ SET(GG_BUILT_SOURCES ${GG_BUILT_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/eyes.c)
 ADD_CUSTOM_COMMAND(
    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mcpat.c
    COMMAND ${MKMCPAT_EXE} ${CMAKE_CURRENT_SOURCE_DIR}/mc_montegnu_classic.db
-                          ${CMAKE_CURRENT_SOURCE_DIR}/mc_mogo_classic.db
-                          ${CMAKE_CURRENT_SOURCE_DIR}/mc_uniform.db
 			  > ${CMAKE_CURRENT_BINARY_DIR}/mcpat.c
    DEPENDS mkmcpat ${CMAKE_CURRENT_SOURCE_DIR}/mkmcpat.c
                    ${CMAKE_CURRENT_SOURCE_DIR}/mc_montegnu_classic.db
-                   ${CMAKE_CURRENT_SOURCE_DIR}/mc_mogo_classic.db
-                   ${CMAKE_CURRENT_SOURCE_DIR}/mc_uniform.db
    )
 
 SET(GG_BUILT_SOURCES ${GG_BUILT_SOURCES}

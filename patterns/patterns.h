@@ -230,7 +230,7 @@ struct pattern_attribute {
 // but needs to get filled at runtime. If we separate this out
 // the rest of the pattern struct can be declared 'const'.
 struct pattern_extents {
-  int mini, minj, maxi, maxj, height, width;
+  signed char mini, minj, maxi, maxj, height, width;
 };
 
 /*
