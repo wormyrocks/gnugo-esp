@@ -34,6 +34,8 @@
 #include <config.h>
 #endif
 
+#include <stdint.h>
+
 /* local versions of absolute value, min and max */
 
 #define gg_abs(x) ((x) < 0 ? -(x) : (x))
@@ -237,23 +239,21 @@ struct pattern_extents {
  * Each pattern as a whole is compiled to an instance of this structure.
  */
 struct pattern {
-  struct patval *patn;  /* array of elements */
-  int patlen;           /* number of elements */
-  int trfno;            /* number of transformations (rotations and reflections) */
-  const char *name;     /* short description of pattern (optional) */
+  struct patval *patn;      /* array of elements */
+  uint16_t patlen;          /* number of elements */
+  uint16_t move_offset;     /* offset of the suggested move (relative to anchor) */
+  const char *name;         /* short description of pattern (optional) */
   signed char width;
   signed char height;
-  unsigned int edge_constraints; /* and combinations of NORTH, EAST etc.
-				  * for edges */
-
-  int move_offset;      /* offset of the suggested move (relative to anchor) */
+  uint8_t edge_constraints; /* and combinations of NORTH, EAST etc. for edges */
+  uint8_t trfno;            /* number of transformations (rotations and reflections) */
 
 #if GRID_OPT
   unsigned int and_mask[8]; /* for each rotation, masks for a */
   unsigned int val_mask[8]; /* 4x4 grid around anchor */
 #endif
 
-  unsigned int class;   /* classification of pattern */
+  unsigned int class;       /* classification of pattern */
 
   /* Value (owl-style, used for pattern sorting) is not stored as an
    * attribute, because it is very common.
@@ -263,14 +263,13 @@ struct pattern {
   /* Pattern attributes like shape, followup etc. */
   struct pattern_attribute *attributes;
 
-  int autohelper_flag;  /* whether autohelper has constraint and/or action */
+  uint8_t autohelper_flag;  /* whether autohelper has constraint and/or action */
+  uint8_t anchored_at_X;    /* 3 if the pattern has 'X' at the anchor posn */
+  /* 2 bytes implicit padding before function pointers */
   pattern_helper_fn_ptr helper;  /* helper function, or NULL */
-  autohelper_fn_ptr autohelper;  /* automatically generated helper */
-                                 /* function, or NULL */
+  autohelper_fn_ptr autohelper;  /* automatically generated helper function, or NULL */
 
-  int anchored_at_X;    /* 3 if the pattern has 'X' at the anchor posn */
-
-  float constraint_cost; /* mkpat's estimate of the constraint complexity.*/
+  float constraint_cost;    /* mkpat's estimate of the constraint complexity.*/
 
 #if PROFILE_PATTERNS
   int hits;
@@ -390,17 +389,16 @@ struct corner_variation {
 };
 
 struct corner_pattern {
-  int second_corner_offset; /* Offset of pattern's second corner. */
-  int symmetric;	/* If the pattern is symmetric ('/' symmetry). */
-
-  unsigned int class;	/* Pattern class. */
-  const char *name;	/* Pattern name (optional). */
+  unsigned int class;       /* Pattern class. */
+  const char *name;         /* Pattern name (optional). */
 
   /* Pattern attributes like shape (the only one used currently). */
   _CONST_DECL struct pattern_attribute *attributes;
 
-  int autohelper_flag;	/* Whether autohelper has constraint and/or action. */
   autohelper_fn_ptr autohelper; /* Automatically generated helper (or NULL). */
+  uint16_t second_corner_offset; /* Offset of pattern's second corner. */
+  uint8_t autohelper_flag;  /* Whether autohelper has constraint and/or action. */
+  uint8_t symmetric;        /* If the pattern is symmetric ('/' symmetry). */
 };
 
 /* Build time version of corner_variation structure. */

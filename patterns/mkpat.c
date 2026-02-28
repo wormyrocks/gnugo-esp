@@ -2281,9 +2281,7 @@ write_patterns(FILE *outfile)
 
 
     if (database_type == DB_CORNER) {
-      fprintf(outfile, "  {%d,%d,0x%x,\"%s\",",
-	      second_corner_offset[j], (p->trfno == 4),
-	      p->class, pattern_names[j]);
+      fprintf(outfile, "  {0x%x,\"%s\",", p->class, pattern_names[j]);
 
       if (attributes_needed) {
 	fprintf(outfile, "(struct pattern_attribute*)(attributes+%d),",
@@ -2292,12 +2290,13 @@ write_patterns(FILE *outfile)
       else
 	fprintf(outfile, "NULL,");
 
-      fprintf(outfile, "%d,", p->autohelper_flag);
-
       if (p->autohelper)
-	fprintf(outfile, "autohelper%s%d}", prefix, j);
+	fprintf(outfile, "autohelper%s%d,", prefix, j);
       else
-	fprintf(outfile, "NULL}");
+	fprintf(outfile, "NULL,");
+
+      fprintf(outfile, "%d,%d,%d}",
+	      second_corner_offset[j], p->autohelper_flag, (p->trfno == 4));
 
       if (j != patno - 1)
 	fprintf(outfile, ",\n");
@@ -2316,12 +2315,12 @@ write_patterns(FILE *outfile)
     fprintf(outfile, "  {(struct patval*)(%s%d),%d,%d,\"%s\",%d,%d,0x%x,%d",
 	    prefix, j,
 	    p->patlen,
-	    p->trfno,
+	    p->move_offset,
 	    pattern_names[j],
 	    p->width,
 	    p->height,
 	    p->edge_constraints,
-	    p->move_offset);
+	    p->trfno);
 
 #if GRID_OPT
     fprintf(outfile, ",\n    {");
@@ -2346,13 +2345,12 @@ write_patterns(FILE *outfile)
     else
       fprintf(outfile, "NULL,");
 
-    fprintf(outfile, "%d,%s,", p->autohelper_flag, helper_fn_names[j]);
+    fprintf(outfile, "%d,%d,%s,", p->autohelper_flag, p->anchored_at_X, helper_fn_names[j]);
 
     if (p->autohelper)
       fprintf(outfile, "autohelper%s%d", prefix, j);
     else
       fprintf(outfile, "NULL");
-    fprintf(outfile, ",%d", p->anchored_at_X);
     fprintf(outfile, ",%f", p->constraint_cost);
 #if PROFILE_PATTERNS
     fprintf(outfile, ",0,0");
@@ -2370,7 +2368,7 @@ write_patterns(FILE *outfile)
 #if GRID_OPT
   fprintf(outfile, ",{0,0,0,0,0,0,0,0},{0,0,0,0,0,0,0,0}");
 #endif
-  fprintf(outfile, ",0,0.0,NULL,0,NULL,NULL,0,0.0");
+  fprintf(outfile, ",0,0.0,NULL,0,0,NULL,NULL,0.0");
 #if PROFILE_PATTERNS
   fprintf(outfile, ",0,0,0");
 #endif
