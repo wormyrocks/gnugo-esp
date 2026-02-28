@@ -92,10 +92,10 @@ struct vertex_stack_entry {
  * exceeds 40. But since we have no way to recover from running out of
  * stack space, we allocate with a substantial safety margin.
  */
-#ifndef CONFIG_STACK_SIZE
-#define CONFIG_STACK_SIZE 80
+#ifndef CONFIG_GNUGO_STACK_SIZE
+#define CONFIG_GNUGO_STACK_SIZE 80
 #endif
-#define STACK_SIZE (CONFIG_STACK_SIZE * MAXSTACK)
+#define STACK_SIZE (CONFIG_GNUGO_STACK_SIZE * MAXSTACK)
 
 
 #define CLEAR_STACKS() do { \
