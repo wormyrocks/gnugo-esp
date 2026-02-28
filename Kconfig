@@ -30,19 +30,10 @@ menu "GNU Go Configuration"
         int "Core for Go engine"
         default 1
         range 0 1
-    config OVERCLOCK
-        bool "Overclock to 400mhz"
-        default n
     config GO_TASK_STACK_MB
         int "Go task stack size (MB)"
         default 2
     config GO_TASK_HEAP_MB
         int "Go task heap size (MB)"
         default 4
-    config GO_MIN_LEVEL
-        int "Minimum level"
-        default 1
-    config GO_MAX_LEVEL
-        int "Maximum level"
-        default 10
 endmenu

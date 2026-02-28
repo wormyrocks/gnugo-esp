@@ -2,6 +2,7 @@
 #include "gnugo.h"
 #include "gg_utils.h"
 #include "interface.h"
+#include "gtp.h"
 #include "board.h"
 #include "liberty.h"
 #include "assert.h"
