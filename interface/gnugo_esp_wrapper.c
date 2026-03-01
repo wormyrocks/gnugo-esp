@@ -7,6 +7,7 @@
 #include "liberty.h"
 #include "assert.h"
 #include "string.h"
+#include <ctype.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -26,9 +27,124 @@ static int passes = 0;
 static int game_is_over = 0;
 static bool undo_allowed = false;
 
-// memstream allowing us to use file operations to write to a RAM buffer
-static char *sgf_outptr = NULL;
+/* Local mirrors of GTP-controlled settings (avoid reading gnugo globals). */
+static float wrapper_komi  = 6.5f;
+static int   wrapper_level = 0;
+
+/* memstream for in-memory SGF output */
+static char  *sgf_outptr    = NULL;
 static size_t sgf_outbuf_len = 0;
+
+/* ------------------------------------------------------------------ *
+ *  GTP dispatch                                                       *
+ * ------------------------------------------------------------------ */
+
+/*
+ * Core GTP dispatch: send one command (must end with '\n'), optionally
+ * echoing to stdout.  Returns response in a malloc'd buffer; caller frees.
+ */
+static char *
+gtp_send_internal(const char *cmd, bool echo)
+{
+    if (echo) {
+        printf(">> %s", cmd);
+        fflush(stdout);
+    }
+    FILE *in = fmemopen((void *)cmd, strlen(cmd), "r");
+    if (!in)
+        return NULL;
+    char   *out_buf = NULL;
+    size_t  out_len = 0;
+    FILE   *out = open_memstream(&out_buf, &out_len);
+    assert(out != NULL);
+    gtp_run_command(in, out);
+    fclose(in);
+    fclose(out);
+    if (echo) {
+        printf("<< %s", out_buf ? out_buf : "(null)\n");
+        fflush(stdout);
+    }
+    return out_buf;
+}
+
+/* Internal use: echo command + response to stdout. */
+static char *gtp_send(const char *cmd) { return gtp_send_internal(cmd, true); }
+
+/* Public: send one GTP command, return raw response. No echo prefixes. */
+char *esp_gnugo_send_gtp(const char *cmd) { return gtp_send_internal(cmd, false); }
+
+/* ------------------------------------------------------------------ *
+ *  GTP response parsers                                               *
+ * ------------------------------------------------------------------ */
+
+/* Parse a single integer from a GTP success response "= <int>\n\n". */
+static int
+gtp_parse_int(const char *resp)
+{
+    int val = 0;
+    if (resp && resp[0] == '=')
+        sscanf(resp + 1, " %d", &val);
+    return val;
+}
+
+/*
+ * Parse a score from "= W+X.X (...)\n\n" or "= B+X.X (...)\n\n".
+ * Returns positive float if white leads, negative if black leads.
+ */
+static float
+gtp_parse_score(const char *resp)
+{
+    if (!resp || resp[0] != '=')
+        return 0.0f;
+    const char *p = resp + 1;
+    while (*p == ' ') p++;
+    float val = 0.0f;
+    if (p[0] == 'W' && p[1] == '+')
+        sscanf(p + 2, "%f", &val);
+    else if (p[0] == 'B' && p[1] == '+') {
+        sscanf(p + 2, "%f", &val);
+        val = -val;
+    }
+    return val;
+}
+
+/*
+ * Convert a GTP vertex token ("A1", "D5", "PASS") to gnugo (i, j).
+ * Returns 1 on success, 0 for PASS or invalid vertex.
+ */
+static int
+parse_gtp_vertex(const char *v, int *out_i, int *out_j)
+{
+    if (!v || !*v || strncasecmp(v, "PASS", 4) == 0)
+        return 0;
+    int col = tolower((unsigned char)v[0]) - 'a';
+    if (col >= 8) col--;   /* skip 'i' */
+    if (col < 0 || col >= GRID_POINTS)
+        return 0;
+    int row = atoi(v + 1);
+    if (row < 1 || row > GRID_POINTS)
+        return 0;
+    *out_j = col;
+    *out_i = GRID_POINTS - row;
+    return 1;
+}
+
+/* Convert a gnugo board position to a GTP vertex string (e.g. "D5", "PASS"). */
+static void
+pos_to_gtp_vertex(int pos, char *buf)
+{
+    if (is_pass(pos)) {
+        strcpy(buf, "PASS");
+        return;
+    }
+    int i = I(pos), j = J(pos);
+    buf[0] = 'A' + j + (j >= 8 ? 1 : 0);
+    snprintf(buf + 1, 8, "%d", GRID_POINTS - i);
+}
+
+/* ------------------------------------------------------------------ *
+ *  SGF helpers                                                        *
+ * ------------------------------------------------------------------ */
 
 static void
 init_sgf(Gameinfo *ginfo)
@@ -36,97 +152,169 @@ init_sgf(Gameinfo *ginfo)
     if (sgf_initialized)
         return;
     sgf_initialized = 1;
-    sgf_write_header(sgftree.root, 1, get_random_seed(), komi,
-                     ginfo->handicap, get_level(), chinese_rules);
+    sgf_write_header(sgftree.root, 1, get_random_seed(), wrapper_komi,
+                     ginfo->handicap, wrapper_level, chinese_rules);
     if (ginfo->handicap > 0)
         sgffile_recordboard(sgftree.root);
 }
 
-// by convention (for now), all updates to game_state happen in this function
-static void esp_gnugo_update_board_state()
+/* ------------------------------------------------------------------ *
+ *  Board state update                                                 *
+ * ------------------------------------------------------------------ */
+
+/* by convention, all updates to game_state happen in this function */
+static void
+esp_gnugo_update_board_state(void)
 {
-    // Update board
-    for (int x = 0; x < GRID_POINTS; x++)
-        for (int y = 0; y < GRID_POINTS; y++)
-        {
-            int val = BOARD(y, x);
-            if ((val == GRID_EMPTY) && IS_STONE((game_state.board)[x][y]))
-            {
-                // Show dead stones as captured for one frame
-                game_state.board[x][y] += 10;
+    /* ---- Board: read from list_stones ---- */
+    {
+        uint8_t new_board[GRID_POINTS][GRID_POINTS] = {{0}};
+
+        static const char *cmds[2]      = {"list_stones black\n",
+                                           "list_stones white\n"};
+        static const uint8_t vals[2]    = {GRID_BLACK, GRID_WHITE};
+
+        for (int c = 0; c < 2; c++) {
+            char *resp = gtp_send(cmds[c]);
+            if (!resp) continue;
+            /* Response: "= A1 B2 ...\n\n" */
+            char *p = resp + 1;
+            char tok[16];
+            int n;
+            while (sscanf(p, " %15s%n", tok, &n) == 1) {
+                int vi, vj;
+                if (parse_gtp_vertex(tok, &vi, &vj))
+                    new_board[vj][vi] = vals[c];
+                p += n;
             }
-            else
-            {
-                game_state.board[x][y] = val;
+            free(resp);
+        }
+
+        /* Capture animation: if a stone vanished, flash it for one frame */
+        for (int x = 0; x < GRID_POINTS; x++)
+            for (int y = 0; y < GRID_POINTS; y++) {
+                uint8_t prev = game_state.board[x][y];
+                uint8_t cur  = new_board[x][y];
+                if (cur == GRID_EMPTY &&
+                    (prev == GRID_BLACK || prev == GRID_WHITE))
+                    game_state.board[x][y] = prev + 10;   /* GRID_DEAD_* */
+                else
+                    game_state.board[x][y] = cur;
+            }
+    }
+
+    /* ---- Move history: count moves, get last two ---- */
+    int movenum = 0;
+    char last_color[16]  = {0}, last_vertex[16]  = {0};
+    char prev_color[16]  = {0}, prev_vertex[16]  = {0};
+    {
+        char *mresp = gtp_send("move_history\n");
+        if (mresp && mresp[0] == '=') {
+            char *p = mresp + 1;
+            while (*p == ' ') p++;
+            int entry = 0;
+            char col[16], vtx[16];
+            int n;
+            while (sscanf(p, "%15s %15s%n", col, vtx, &n) == 2) {
+                movenum++;
+                if (entry == 0) {
+                    memcpy(last_color,  col, sizeof(last_color));
+                    memcpy(last_vertex, vtx, sizeof(last_vertex));
+                } else if (entry == 1) {
+                    memcpy(prev_color,  col, sizeof(prev_color));
+                    memcpy(prev_vertex, vtx, sizeof(prev_vertex));
+                }
+                entry++;
+                p += n;
+                while (*p == '\n' || *p == '\r') p++;
             }
         }
+        free(mresp);
+    }
+
+    /* ---- Captures: gtp "captures <color>" returns stones taken FROM that color ----
+     *   captures white  =>  gnugo black_captured  =>  game_state.black_captured
+     *   captures black  =>  gnugo white_captured  =>  game_state.white_captured  */
+    int new_bc, new_wc;
+    {
+        char *bc_r = gtp_send("captures white\n");
+        char *wc_r = gtp_send("captures black\n");
+        new_bc = gtp_parse_int(bc_r); free(bc_r);
+        new_wc = gtp_parse_int(wc_r); free(wc_r);
+    }
+
+    /* ---- Game state & events ---- */
     game_state.state = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
     if (gameinfo->computer_player == gameinfo->to_move)
-    {
         game_state.state = ESP_GNUGO_STATE_WAITING_FOR_CPU;
-    }
 
-    if (game_is_over)
-    {
+    if (game_is_over) {
         game_state.state = ESP_GNUGO_STATE_GAME_OVER;
-        // If last move was a resignation, no need to update board or show dead stones
-        if (passes == 2)
-        {
+
+        if (passes == 2) {
             game_state.last_event = ESP_GNUGO_EVENT_WIN;
-            for (int pos = BOARDMIN; pos < BOARDMAX; pos++)
-            {
-                if (!IS_STONE(board[pos]))
-                    continue;
-                if (dragon[pos].status == DEAD)
-                {
-                    // Deadify stone
-                    (game_state.board)[J(pos)][I(pos)] += 10;
+
+            /* Mark dead stones */
+            char *dresp = gtp_send("final_status_list dead\n");
+            if (dresp && dresp[0] == '=') {
+                char *p = dresp + 1;
+                char tok[16];
+                int n;
+                while (sscanf(p, " %15s%n", tok, &n) == 1) {
+                    int vi, vj;
+                    if (parse_gtp_vertex(tok, &vi, &vj)) {
+                        uint8_t v = game_state.board[vj][vi];
+                        if (v == GRID_BLACK || v == GRID_WHITE)
+                            game_state.board[vj][vi] = v + 10;
+                    }
+                    p += n;
                 }
             }
-        }
-        else
-        {
-            game_state.last_event = ESP_GNUGO_EVENT_RESIGN;
-        }
-    }
-    else
-    {
-        if (movenum == 0)
-            game_state.last_event = ESP_GNUGO_EVENT_NONE;
-        else if (is_pass(get_last_move()))
-            game_state.last_event = ESP_GNUGO_EVENT_PASS;
-        else
-        {
-            game_state.last_event = ESP_GNUGO_EVENT_PLAY;
-            if (game_state.black_captured < black_captured || game_state.white_captured < white_captured)
-            {
-                game_state.last_event = ESP_GNUGO_EVENT_CAPTURE;
-            }
-        }
-        if (movenum)
-        {
-            int last_move = get_last_move();
-            int last_player = get_last_player();
-            bool done = 0;
-        put_move:
-            location_to_buffer(last_move, (last_player == WHITE) ? game_state.white_last_move : game_state.black_last_move);
-            if (movenum > 1 && !done)
-            {
-                last_move = get_last_opponent_move(last_player);
-                last_player = OTHER_COLOR(last_player);
-                done = 1;
-                goto put_move;
-            }
-        }
-    }
-    game_state.level = get_level();
-    game_state.score = (white_score + black_score) / 2.0;
-    game_state.white_turn = (gameinfo->to_move == WHITE);
-    game_state.move_number = movenum;
-    game_state.black_captured = black_captured;
-    game_state.white_captured = white_captured;
+            free(dresp);
 
-    // Buffer up existing SGF to file.
+            char *sresp = gtp_send("final_score\n");
+            game_state.score = gtp_parse_score(sresp);
+            free(sresp);
+        } else {
+            game_state.last_event = ESP_GNUGO_EVENT_RESIGN;
+            game_state.score = 0.0f;
+        }
+    } else {
+        if (movenum == 0) {
+            game_state.last_event = ESP_GNUGO_EVENT_NONE;
+        } else if (strncasecmp(last_vertex, "PASS", 4) == 0) {
+            game_state.last_event = ESP_GNUGO_EVENT_PASS;
+        } else if (new_bc > game_state.black_captured ||
+                   new_wc > game_state.white_captured) {
+            game_state.last_event = ESP_GNUGO_EVENT_CAPTURE;
+        } else {
+            game_state.last_event = ESP_GNUGO_EVENT_PLAY;
+        }
+
+        /* Last move strings */
+        if (movenum > 0) {
+            char *dst = strncasecmp(last_color, "white", 5) == 0 ?
+                        game_state.white_last_move : game_state.black_last_move;
+            strncpy(dst, last_vertex, sizeof(game_state.white_last_move) - 1);
+        }
+        if (movenum > 1) {
+            char *dst = strncasecmp(prev_color, "white", 5) == 0 ?
+                        game_state.white_last_move : game_state.black_last_move;
+            strncpy(dst, prev_vertex, sizeof(game_state.white_last_move) - 1);
+        }
+
+        char *sresp = gtp_send("estimate_score\n");
+        game_state.score = gtp_parse_score(sresp);
+        free(sresp);
+    }
+
+    game_state.black_captured = new_bc;
+    game_state.white_captured = new_wc;
+    game_state.level          = wrapper_level;
+    game_state.white_turn     = (gameinfo->to_move == WHITE);
+    game_state.move_number    = movenum;
+
+    /* SGF buffer */
     if (sgf_outptr)
         free(sgf_outptr);
     FILE *sgf_outfd = open_memstream(&sgf_outptr, &sgf_outbuf_len);
@@ -139,244 +327,321 @@ static void esp_gnugo_update_board_state()
         update_cb(&game_state);
 }
 
-// Comment in 'infile' takes precedence over player_is_white.
-static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int requested_handicap, int requested_level)
+/* ------------------------------------------------------------------ *
+ *  Board initialisation                                               *
+ * ------------------------------------------------------------------ */
+
+/* Comment in 'infile' takes precedence over player_is_white. */
+static void
+esp_gnugo_init_board_state(char *infile, bool player_is_white,
+                           int requested_handicap, int requested_level)
 {
     gameinfo_clear(gameinfo);
     int did_load = 0;
-    if (infile)
-    {
+
+    if (infile) {
         struct stat info;
-        // TODO: currently we are manually preventing the case where a file of size 0 is psased into
-        // sgftree_readfile, but gnugo_esp should not be allowed to call exit(), which hangs the embedded system
-        // that or we need to wrap or trap the exit function somehow.
-        if (stat(infile, &info) >= 0 && info.st_size > 0)
-        {
-            if (sgftree_readfile(&sgftree, infile))
-            {
+        if (stat(infile, &info) >= 0 && info.st_size > 0) {
+            if (sgftree_readfile(&sgftree, infile)) {
                 printf("Resumed game from %s.\n", infile);
+
+                /* Detect who is the human from the SGF PW property */
                 char *pw_name;
-                if (sgfGetCharProperty(sgftree.root, "PW", &pw_name))
-                {
+                if (sgfGetCharProperty(sgftree.root, "PW", &pw_name)) {
                     if (!strncmp(pw_name, CPU_NAME, sizeof(CPU_NAME)))
-                    {
                         player_is_white = false;
-                    }
-                    else if (!strncmp(pw_name, YOUR_NAME, sizeof(YOUR_NAME)))
-                    {
+                    else if (!strncmp(pw_name, YOUR_NAME, sizeof(YOUR_NAME))) {
                         player_is_white = true;
                         printf("Player is white.\n");
                     }
                 }
-                did_load = (gameinfo_play_sgftree(gameinfo, &sgftree, NULL) != EMPTY);
-                if (did_load)
+
+                /* Use GTP loadsgf to replay the game into the engine */
+                char cmd[256];
+                snprintf(cmd, sizeof(cmd), "loadsgf %s\n", infile);
+                char *resp = gtp_send(cmd);
+                if (resp && resp[0] == '=') {
+                    did_load       = 1;
                     sgf_initialized = 1;
-                sgfOverwritePropertyInt(sgftree.root, "HA", gameinfo->handicap);
-                gameinfo->computer_player = (player_is_white ? BLACK : WHITE);
+
+                    char color_str[16] = {0};
+                    sscanf(resp + 1, " %15s", color_str);
+                    gameinfo->to_move =
+                        strncasecmp(color_str, "white", 5) == 0 ? WHITE : BLACK;
+
+                    char *hresp = gtp_send("get_handicap\n");
+                    gameinfo->handicap = gtp_parse_int(hresp);
+                    free(hresp);
+
+                    sgfOverwritePropertyInt(sgftree.root, "HA",
+                                            gameinfo->handicap);
+                    gameinfo->computer_player =
+                        player_is_white ? BLACK : WHITE;
+                }
+                free(resp);
             }
-        }
-        else
-        {
+        } else {
             printf("Empty file. Starting new game.\n");
         }
     }
-    // Start fresh
-    if (!did_load)
-    {
+
+    /* Fresh start */
+    if (!did_load) {
         printf("Starting new game with level %d\n", requested_level);
-        if (requested_level != -1)
-            set_level(requested_level);
-        gameinfo->computer_player = (player_is_white ? BLACK : WHITE);
-        gameinfo->handicap = requested_handicap;
-        handicap = gameinfo->handicap;
-        gameinfo->to_move = BLACK;
-        if (gameinfo->handicap != 0)
-        {
-            gameinfo->handicap = place_fixed_handicap(gameinfo->handicap);
+
+        /* Clear the board for a clean slate */
+        char *cr = gtp_send("clear_board\n");
+        free(cr);
+
+        if (requested_level != -1) {
+            char cmd[32];
+            snprintf(cmd, sizeof(cmd), "level %d\n", requested_level);
+            char *r = gtp_send(cmd);
+            free(r);
+            wrapper_level = requested_level;
+        }
+
+        gameinfo->computer_player = player_is_white ? BLACK : WHITE;
+        gameinfo->handicap        = requested_handicap;
+        gameinfo->to_move         = BLACK;
+
+        if (gameinfo->handicap != 0) {
+            char cmd[32];
+            snprintf(cmd, sizeof(cmd), "fixed_handicap %d\n",
+                     gameinfo->handicap);
+            char *r = gtp_send(cmd);
+            free(r);
             gameinfo->to_move = WHITE;
         }
+
         sgf_initialized = 0;
-        sgftreeCreateHeaderNode(&sgftree, board_size, komi, gameinfo->handicap);
-        sgfAddProperty(sgftree.root, "PW", player_is_white ? YOUR_NAME : CPU_NAME);
+        sgftreeCreateHeaderNode(&sgftree, GRID_POINTS, wrapper_komi,
+                                gameinfo->handicap);
+        sgfAddProperty(sgftree.root, "PW",
+                       player_is_white ? YOUR_NAME : CPU_NAME);
     }
+
     gameinfo->game_record = sgftree;
-    white_score = 0;
-    black_score = 0;
     memset(&game_state, 0, sizeof(esp_gnugo_game_state_t));
     esp_gnugo_update_board_state();
 }
 
-void esp_gnugo_set_level(int level)
-{
-    set_level(level);
-}
+/* ------------------------------------------------------------------ *
+ *  Public API                                                         *
+ * ------------------------------------------------------------------ */
 
 static esp_gnugo_game_init_t i_p;
-esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
+
+esp_gnugo_state_t
+esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
 {
-    board_size = 9;
-    //printboard = 1;
-    //showstatistics = 1;
     memcpy(&i_p, &init_params, sizeof(esp_gnugo_game_init_t));
     assert(game_state.state == ESP_GNUGO_STATE_NOT_STARTED);
-    passes = 0;
+
+    passes       = 0;
     autolevel_on = init_params.autolevel;
-    update_cb = init_params.update_callback;
+    update_cb    = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
-    komi = init_params.komi;
+    wrapper_komi = init_params.komi;
+
+    init_gnugo(init_params.memory_mb, init_params.random_seed);
 #ifndef CONFIG_DISABLE_MONTE_CARLO
     choose_mc_patterns("montegnu_classic");
 #endif
-    // choose_mc_patterns("uniform");
-    // choose_mc_patterns("mogo_classic");
-    gnugo_clear_board(board_size);
-    init_gnugo(init_params.memory_mb, init_params.random_seed);
-    // outfilename: autosave file. default to stdout
-    strcpy(sgfname, "-");
 
-    // init_params.outfile: user saves this explicitly
-    if (init_params.outfile)
-    {
+    /* boardsize clears the board and primes gtp_boardsize for coord parsing */
+    char cmd[32];
+    snprintf(cmd, sizeof(cmd), "boardsize %d\n", GRID_POINTS);
+    char *r = gtp_send(cmd); free(r);
+
+    snprintf(cmd, sizeof(cmd), "komi %.1f\n", wrapper_komi);
+    r = gtp_send(cmd); free(r);
+
+    strcpy(sgfname, "-");
+    if (init_params.outfile) {
         strcpy(sgfname, init_params.outfile);
         printf("Game may be manually saved to %s\n", init_params.outfile);
     }
-    esp_gnugo_init_board_state(init_params.infile, init_params.player_is_white, init_params.requested_handicap, init_params.start_level);
-    
+
+    esp_gnugo_init_board_state(init_params.infile, init_params.player_is_white,
+                               init_params.requested_handicap,
+                               init_params.start_level);
+
     *player_is_white_ = (gameinfo->computer_player == BLACK);
     return game_state.state;
 }
 
-static void process_move(int move, int did_resign)
+/* Play one move through GTP and update all bookkeeping. */
+static void
+process_move(int move, int did_resign)
 {
     init_sgf(gameinfo);
-    gnugo_play_move(move, gameinfo->to_move);
+
+    if (!did_resign) {
+        char vertex[16];
+        pos_to_gtp_vertex(move, vertex);
+        char cmd[48];
+        snprintf(cmd, sizeof(cmd), "play %s %s\n",
+                 (gameinfo->to_move == BLACK) ? "black" : "white",
+                 vertex);
+        char *r = gtp_send(cmd);
+        free(r);
+    }
+
+    /* Record to SGF (pass recorded for resign too, matching prior behaviour) */
     sgftreeAddPlay(&sgftree, gameinfo->to_move, I(move), J(move));
     gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
-    if (did_resign)
-    {
+
+    if (did_resign) {
         game_is_over = 1;
-    }
-    else
-    {
-        if (is_pass(move))
-        {
+    } else {
+        if (is_pass(move)) {
             if (++passes == 2)
-            {
                 game_is_over = 1;
-                who_wins(EMPTY, stdout);
-            }
-        }
-        else
-        {
+        } else {
             passes = 0;
         }
     }
     if (passes)
         printf("passes: %d %d\n", passes, game_is_over);
+
     esp_gnugo_update_board_state();
 }
 
-// return 1? check the game state
-// return 0? nothing change, engine expects another command
-int esp_gnugo_set_player_command(engine_signal_t e)
+int
+esp_gnugo_set_player_command(engine_signal_t e)
 {
     go_command_t go_command = e.cmd;
     int move_if_any = e.pos;
+
     if (game_is_over && go_command <= COMMAND_RESIGN)
         return 0;
-    switch (go_command)
-    {
+
+    switch (go_command) {
     case COMMAND_PASS:
     case COMMAND_RESIGN:
         process_move(0, (go_command == COMMAND_RESIGN));
         return 1;
-    case COMMAND_PLAY:
-    {
-        int ret = is_allowed_move(move_if_any, gameinfo->to_move);
-        if (ret)
+
+    case COMMAND_PLAY: {
+        char vertex[16];
+        pos_to_gtp_vertex(move_if_any, vertex);
+        char cmd[48];
+        snprintf(cmd, sizeof(cmd), "is_legal %s %s\n",
+                 (gameinfo->to_move == BLACK) ? "black" : "white",
+                 vertex);
+        char *r = gtp_send(cmd);
+        int legal = gtp_parse_int(r);
+        free(r);
+        if (legal)
             process_move(move_if_any, 0);
-        return ret;
+        return legal;
     }
+
     case COMMAND_RESTART:
         esp_gnugo_restart(game_state.level, (gameinfo->computer_player == BLACK));
         return 1;
+
     case COMMAND_FORCEQUIT:
         return 1;
+
     default:
         return game_state.state;
     }
 }
 
-void esp_gnugo_restart(int requested_level, bool player_is_white)
+void
+esp_gnugo_restart(int requested_level, bool player_is_white)
 {
-    passes = 0;
+    passes       = 0;
     game_is_over = 0;
     sgfFreeNode(sgftree.root);
     sgftree_clear(&sgftree);
-    sgftreeCreateHeaderNode(&sgftree, board_size, komi, i_p.requested_handicap);
-    sgfAddProperty(sgftree.root, "PW", player_is_white ? YOUR_NAME : CPU_NAME);
+    sgftreeCreateHeaderNode(&sgftree, GRID_POINTS, wrapper_komi,
+                            i_p.requested_handicap);
+    sgfAddProperty(sgftree.root, "PW",
+                   player_is_white ? YOUR_NAME : CPU_NAME);
     gameinfo_clear(gameinfo);
-    // Restarting should ignore the input filename arg
-    esp_gnugo_init_board_state(NULL, player_is_white, i_p.requested_handicap, requested_level);
+    esp_gnugo_init_board_state(NULL, player_is_white,
+                               i_p.requested_handicap, requested_level);
 }
 
-esp_gnugo_state_t esp_gnugo_get_computer_move()
+esp_gnugo_state_t
+esp_gnugo_get_computer_move(void)
 {
     init_sgf(gameinfo);
-    adjust_level_offset(gameinfo->to_move);
-    int resign = 0;
-    float move_value;
-    int move = genmove(gameinfo->to_move, &move_value, &resign);
-    process_move(move, resign);
+
+    char cmd[32];
+    snprintf(cmd, sizeof(cmd), "genmove %s\n",
+             (gameinfo->to_move == BLACK) ? "black" : "white");
+
+    char *response = gtp_send(cmd);
+    if (!response)
+        return game_state.state;
+
+    /* Response: "= resign\n\n", "= PASS\n\n", or "= <vertex>\n\n" */
+    int did_resign = (strncmp(response, "= resign", 8) == 0);
+    int color      = gameinfo->to_move;
+
+    if (!did_resign) {
+        char vertex[16] = {0};
+        sscanf(response + 1, " %15s", vertex);
+
+        /* Record to SGF */
+        int vi, vj;
+        if (parse_gtp_vertex(vertex, &vi, &vj))
+            sgftreeAddPlay(&sgftree, color, vi, vj);
+        else
+            sgftreeAddPlay(&sgftree, color, -1, -1);   /* PASS */
+
+        if (strncasecmp(vertex, "PASS", 4) == 0) {
+            if (++passes == 2)
+                game_is_over = 1;
+        } else {
+            passes = 0;
+        }
+    } else {
+        game_is_over = 1;
+    }
+
+    free(response);
+    gameinfo->to_move = OTHER_COLOR(color);
+
+    esp_gnugo_update_board_state();
     return game_state.state;
 }
 
-int esp_gnugo_pos_from_xy(int x, int y)
+int
+esp_gnugo_pos_from_xy(int x, int y)
 {
     return POS(x, y);
 }
 
-esp_gnugo_game_state_t *esp_gnugo_get_game_state()
+esp_gnugo_game_state_t *
+esp_gnugo_get_game_state(void)
 {
     return &game_state;
 }
 
-esp_gnugo_state_t esp_gnugo_get_state()
+esp_gnugo_state_t
+esp_gnugo_get_state(void)
 {
     return game_state.state;
 }
 
-// We need a custom function for this (not sgfwrite)
-// because we would like to make atomic, deterministic
-// updates to the SGF file that reflect changes to the SGF
-// tree at known times.
-// I.E., if the player turns off the machine while the
-// computer is thinking, we do NOT want to wait for the computer
-// to play before we dump the SGF file and abort the process.
-// Otherwise, there would be an extra move played when the game
-// resumes.
-// On an embedded system, we also want to manipulate the filesystem
-// as little as possible. This allows us to keep all SGF manipulation
-// in-memory, rather than repeatedly updating the file contents on disk.
-// The dynamically allocated buffer pointed to by sgf_outptr
-// is only updated in esp_gnugo_update_board_state.
-
-void esp_gnugo_dump_sgf(char *sgfname)
+/*
+ * Dump the in-memory SGF buffer to disk.  The buffer is only updated in
+ * esp_gnugo_update_board_state, giving atomic, deterministic snapshots.
+ */
+void
+esp_gnugo_dump_sgf(char *filename)
 {
     if (sgf_outbuf_len == 0)
         return;
-    printf("Game saved to %s (%d bytes).\n", sgfname, sgf_outbuf_len);
-    FILE *f = fopen(sgfname, "w");
-    // TODO: error handling here
+    printf("Game saved to %s (%d bytes).\n", filename, (int)sgf_outbuf_len);
+    FILE *f = fopen(filename, "w");
     fwrite(sgf_outptr, sgf_outbuf_len, 1, f);
     fclose(f);
 }
 
-void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output)
-{
-    board_size = DEFAULT_BOARD_SIZE;
-    gnugo_clear_board(board_size);
-    init_gnugo(8, 0);
-    play_gtp(gtp_input, gtp_output, NULL, 0);
-}
 

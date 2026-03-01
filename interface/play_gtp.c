@@ -356,6 +356,18 @@ play_gtp(FILE *gtp_input, FILE *gtp_output, FILE *gtp_dump_commands,
 }
 
 
+/* Dispatch a single GTP command read from `in', write response to `out'.
+ * Exits when `in' reaches EOF (i.e. after one command line).
+ * Caller must have called gtp_internal_set_boardsize() before using
+ * commands that involve board coordinates.
+ */
+void
+gtp_run_command(FILE *in, FILE *out)
+{
+  gtp_main_loop(commands, in, out, NULL);
+}
+
+
 /****************************
  * Administrative commands. *
  ****************************/

@@ -98,11 +98,9 @@ esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t, bool*);
 void esp_gnugo_restart(int level, bool player_is_white);
 esp_gnugo_state_t esp_gnugo_get_computer_move();
 int esp_gnugo_set_player_command(engine_signal_t);
-// void esp_gnugo_set_level(int level);
-// int esp_gnugo_set_player_move(char *);
- int esp_gnugo_pos_from_xy(int x, int y);
+int esp_gnugo_pos_from_xy(int x, int y);
 esp_gnugo_game_state_t *esp_gnugo_get_game_state();
 esp_gnugo_state_t esp_gnugo_get_state();
-void esp_gnugo_dump_sgf(char* sgfname);
-void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output);
+void esp_gnugo_dump_sgf(char *sgfname);
+char *esp_gnugo_send_gtp(const char *cmd);
 #endif
