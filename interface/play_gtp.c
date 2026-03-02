@@ -2989,7 +2989,7 @@ gtp_time_left(char *s)
  ***********/
 
 static float final_score;
-static enum dragon_status final_status[MAX_BOARD][MAX_BOARD];
+static enum dragon_status _EMBEDDED_BSS final_status[MAX_BOARD][MAX_BOARD];
 static enum dragon_status status_numbers[6] = {ALIVE, DEAD, ALIVE_IN_SEKI,
 					       WHITE_TERRITORY,
 					       BLACK_TERRITORY, DAME};

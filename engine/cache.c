@@ -50,9 +50,9 @@ Transposition_table ttable;
  * than the board position). If you add an array here, do not forget
  * to also initialize it in keyhash_init() below.
  */
-static Hash_data target1_hash[BOARDMAX];
-static Hash_data target2_hash[BOARDMAX];
-static Hash_data routine_hash[NUM_CACHE_ROUTINES];
+static Hash_data _EMBEDDED_BSS target1_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS target2_hash[BOARDMAX];
+static Hash_data _EMBEDDED_BSS routine_hash[NUM_CACHE_ROUTINES];
 
 static void
 keyhash_init(void)

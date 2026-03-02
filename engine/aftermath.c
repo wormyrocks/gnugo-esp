@@ -1067,7 +1067,7 @@ do_play_aftermath(int color, struct aftermath_data *a,
   disable_endgame_patterns   = 0;
 }
 
-static struct aftermath_data aftermath;
+static struct aftermath_data _EMBEDDED_BSS aftermath;
 
 static void
 play_aftermath(int color, SGFTree *aftermath_sgftree)

@@ -116,11 +116,11 @@
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #cmakedefine TIME_WITH_SYS_TIME 1
 
-#cmakedefine CONFIG_DISABLE_MONTE_CARLO 1
-
-#cmakedefine CONST_PATTERNS 1
 
 #ifdef ESP_PLATFORM
+#ifdef CONFIG_GNUGO_STACK_SIZE
+#define GNUGO_STACK_SIZE CONFIG_GNUGO_STACK_SIZE
+#endif
 #include "esp_attr.h"
 #ifdef CONFIG_USE_ESP_RANDOM
 #include "esp_random.h"
@@ -132,23 +132,14 @@
 #else
 #define _EMBEDDED_TCM 
 #endif
-#define DEFAULT_LEVEL 0
 #else
 #define _EMBEDDED_BSS
 #define _EMBEDDED_TCM
-/* Default level (strength). Up to 10 supported */
-#define DEFAULT_LEVEL 0
 #endif
+#define DEFAULT_LEVEL 10
 
-#define _EMBEDDED_BSS_SMALL _EMBEDDED_BSS
-
-#ifdef CONST_PATTERNS
 #define _CONST_DECL const
 #define _CONST_DECLS "const"
-#else 
-#define _CONST_DECL
-#define _CONST_DECLS
-#endif
 
 /* Define special valgrind macros. */
 #undef USE_VALGRIND

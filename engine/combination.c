@@ -209,9 +209,9 @@ struct aa_move {
 };
 
 #define AA_MAX_MOVES MAX_BOARD * MAX_BOARD  
-static int aa_status[BOARDMAX]; /* ALIVE, DEAD or CRITICAL */
-static int forbidden[BOARDMAX];
-static int aa_values[BOARDMAX];
+static int _EMBEDDED_BSS aa_status[BOARDMAX]; /* ALIVE, DEAD or CRITICAL */
+static int _EMBEDDED_BSS forbidden[BOARDMAX];
+static int _EMBEDDED_BSS aa_values[BOARDMAX];
 static void compute_aa_status(int color,
 			      const signed char safe_stones[BOARDMAX]);
 static void compute_aa_values(int color);

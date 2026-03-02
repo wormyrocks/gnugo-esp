@@ -2,9 +2,6 @@ menu "GNU Go Configuration"
     config DISABLE_MONTE_CARLO
         bool "Disable Monte Carlo patterns"
         default n
-    config CONST_PATTERNS
-        bool "Patterns stored in ext BSS"
-        default y
     config GNUGO_STACK_SIZE
         int "Stack size"
         default 60

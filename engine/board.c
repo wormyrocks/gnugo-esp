@@ -92,10 +92,10 @@ struct vertex_stack_entry {
  * exceeds 40. But since we have no way to recover from running out of
  * stack space, we allocate with a substantial safety margin.
  */
-#ifndef CONFIG_GNUGO_STACK_SIZE
-#define CONFIG_GNUGO_STACK_SIZE 80
+#ifndef ESP_PLATFORM
+#define GNUGO_STACK_SIZE 80
 #endif
-#define STACK_SIZE (CONFIG_GNUGO_STACK_SIZE * MAXSTACK)
+#define STACK_SIZE (GNUGO_STACK_SIZE * MAXSTACK)
 
 
 #define CLEAR_STACKS() do { \
@@ -138,7 +138,7 @@ struct vertex_stack_entry {
 
 
 /* Main array of string information. */
-static struct string_data _EMBEDDED_BSS_SMALL string[MAX_STRINGS];
+static struct string_data _EMBEDDED_BSS string[MAX_STRINGS];
 static struct string_liberties_data _EMBEDDED_BSS string_libs[MAX_STRINGS];
 static struct string_neighbors_data _EMBEDDED_BSS string_neighbors[MAX_STRINGS];
 
@@ -153,7 +153,7 @@ static struct vertex_stack_entry *vertex_stack_pointer;
 /* Index into list of strings. The index is only valid if there is a
  * stone at the vertex.
  */
-static int _EMBEDDED_BSS_SMALL string_number[BOARDMAX];
+static int _EMBEDDED_BSS string_number[BOARDMAX];
 
 
 /* The stones in a string are linked together in a cyclic list. 
@@ -298,7 +298,7 @@ static int next_string;
 
 
 /* For marking purposes. */
-static int ml[BOARDMAX];
+static int _EMBEDDED_BSS ml[BOARDMAX];
 static int liberty_mark;
 static int string_mark;
 
@@ -482,10 +482,10 @@ test_gray_border(void)
  * position and which color made them. Perhaps 
  * this should be one array of a structure 
  */
-static int stack[MAXSTACK];
-static int move_color[MAXSTACK];
+static int _EMBEDDED_BSS stack[MAXSTACK];
+static int _EMBEDDED_BSS move_color[MAXSTACK];
 
-static Hash_data board_hash_stack[MAXSTACK];
+static Hash_data _EMBEDDED_BSS board_hash_stack[MAXSTACK];
 
 /*
  * trymove pushes the position onto the stack, and makes a move

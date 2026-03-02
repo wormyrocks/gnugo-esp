@@ -2665,7 +2665,7 @@ test_eyeshape(int eyesize, int *eye_vertices)
 static int
 eyegraph_trymove(int pos, int color, const char *message, int str)
 {
-  static Hash_data remembered_board_hashes[MAXSTACK];
+  static Hash_data _EMBEDDED_BSS remembered_board_hashes[MAXSTACK];
   int k;
   int does_capture = does_capture_something(pos, color);
   

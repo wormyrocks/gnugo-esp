@@ -667,7 +667,7 @@ static dfa_t *gpout, *gpleft, *gpright;
 
 /* Hash table used to test if a state has already been
    visited and then give its position in the new automaton. */
-static test_array_t _EMBEDDED_BSS_SMALL gtest;
+static test_array_t _EMBEDDED_BSS gtest;
 
 static void
 do_sync_product(int l, int r)
