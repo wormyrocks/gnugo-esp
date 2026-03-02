@@ -184,7 +184,7 @@ static void esp_gnugo_init_board_state(char *infile, bool player_is_white, int r
     if (!did_load)
     {
         printf("Starting new game with level %d\n", requested_level);
-        if (requested_level)
+        if (requested_level != -1)
             set_level(requested_level);
         gameinfo->computer_player = (player_is_white ? BLACK : WHITE);
         gameinfo->handicap = requested_handicap;
