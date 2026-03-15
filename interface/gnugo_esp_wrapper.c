@@ -292,6 +292,8 @@ esp_gnugo_update_board_state(void)
         }
 
         /* Last move strings */
+        memset(game_state.white_last_move, 0, sizeof(game_state.white_last_move));
+        memset(game_state.black_last_move, 0, sizeof(game_state.black_last_move));
         if (movenum > 0) {
             char *dst = strncasecmp(last_color, "white", 5) == 0 ?
                         game_state.white_last_move : game_state.black_last_move;
