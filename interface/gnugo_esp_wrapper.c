@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#define GRID_POINTS 9
+static int grid_points = 9;
 
 static Gameinfo gameinfo_;
 static Gameinfo *gameinfo = &gameinfo_;
@@ -119,13 +119,13 @@ parse_gtp_vertex(const char *v, int *out_i, int *out_j)
         return 0;
     int col = tolower((unsigned char)v[0]) - 'a';
     if (col >= 8) col--;   /* skip 'i' */
-    if (col < 0 || col >= GRID_POINTS)
+    if (col < 0 || col >= grid_points)
         return 0;
     int row = atoi(v + 1);
-    if (row < 1 || row > GRID_POINTS)
+    if (row < 1 || row > grid_points)
         return 0;
     *out_j = col;
-    *out_i = GRID_POINTS - row;
+    *out_i = grid_points - row;
     return 1;
 }
 
@@ -139,7 +139,7 @@ pos_to_gtp_vertex(int pos, char *buf)
     }
     int i = I(pos), j = J(pos);
     buf[0] = 'A' + j + (j >= 8 ? 1 : 0);
-    snprintf(buf + 1, 8, "%d", GRID_POINTS - i);
+    snprintf(buf + 1, 8, "%d", grid_points - i);
 }
 
 /* ------------------------------------------------------------------ *
@@ -168,7 +168,7 @@ esp_gnugo_update_board_state(void)
 {
     /* ---- Board: read from list_stones ---- */
     {
-        uint8_t new_board[GRID_POINTS][GRID_POINTS] = {{0}};
+        uint8_t new_board[19][19] = {{0}};
 
         static const char *cmds[2]      = {"list_stones black\n",
                                            "list_stones white\n"};
@@ -191,8 +191,8 @@ esp_gnugo_update_board_state(void)
         }
 
         /* Capture animation: if a stone vanished, flash it for one frame */
-        for (int x = 0; x < GRID_POINTS; x++)
-            for (int y = 0; y < GRID_POINTS; y++) {
+        for (int x = 0; x < grid_points; x++)
+            for (int y = 0; y < grid_points; y++) {
                 uint8_t prev = game_state.board[x][y];
                 uint8_t cur  = new_board[x][y];
                 if (cur == GRID_EMPTY &&
@@ -313,6 +313,7 @@ esp_gnugo_update_board_state(void)
     game_state.level          = wrapper_level;
     game_state.white_turn     = (gameinfo->to_move == WHITE);
     game_state.move_number    = movenum;
+    game_state.board_size     = grid_points;
 
     /* SGF buffer */
     if (sgf_outptr)
@@ -415,7 +416,7 @@ esp_gnugo_init_board_state(char *infile, bool player_is_white,
         }
 
         sgf_initialized = 0;
-        sgftreeCreateHeaderNode(&sgftree, GRID_POINTS, wrapper_komi,
+        sgftreeCreateHeaderNode(&sgftree, grid_points, wrapper_komi,
                                 gameinfo->handicap);
         sgfAddProperty(sgftree.root, "PW",
                        player_is_white ? YOUR_NAME : CPU_NAME);
@@ -444,6 +445,8 @@ esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
     undo_allowed = init_params.undo_allowed;
     wrapper_komi = init_params.komi;
 
+    grid_points = init_params.board_size > 0 ? init_params.board_size : 9;
+
     init_gnugo(init_params.memory_mb, init_params.random_seed);
 #ifndef CONFIG_DISABLE_MONTE_CARLO
     choose_mc_patterns("montegnu_classic");
@@ -451,7 +454,7 @@ esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
 
     /* boardsize clears the board and primes gtp_boardsize for coord parsing */
     char cmd[32];
-    snprintf(cmd, sizeof(cmd), "boardsize %d\n", GRID_POINTS);
+    snprintf(cmd, sizeof(cmd), "boardsize %d\n", grid_points);
     char *r = gtp_send(cmd); free(r);
 
     snprintf(cmd, sizeof(cmd), "komi %.1f\n", wrapper_komi);
@@ -542,6 +545,29 @@ esp_gnugo_set_player_command(engine_signal_t e)
         esp_gnugo_restart(game_state.level, (gameinfo->computer_player == BLACK));
         return 1;
 
+    case COMMAND_UNDO: {
+        /* Undo 2 moves (CPU + player) to get back to player's turn.
+         * If it's currently the player's turn and no move was played yet,
+         * undo 2 as well (undo previous pair). */
+        int undo_count = 2;
+        char cmd[32];
+        snprintf(cmd, sizeof(cmd), "gg-undo %d\n", undo_count);
+        char *r = gtp_send(cmd);
+        int ok = (r && r[0] == '=');
+        free(r);
+        if (ok) {
+            game_state.last_event = ESP_GNUGO_EVENT_UNDO;
+            /* Reset pass counter since we're rewinding */
+            passes = 0;
+            game_is_over = 0;
+            /* Flip to_move back by undo_count moves */
+            for (int i = 0; i < undo_count; i++)
+                gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
+            esp_gnugo_update_board_state();
+        }
+        return ok;
+    }
+
     case COMMAND_FORCEQUIT:
         return 1;
 
@@ -557,7 +583,7 @@ esp_gnugo_restart(int requested_level, bool player_is_white)
     game_is_over = 0;
     sgfFreeNode(sgftree.root);
     sgftree_clear(&sgftree);
-    sgftreeCreateHeaderNode(&sgftree, GRID_POINTS, wrapper_komi,
+    sgftreeCreateHeaderNode(&sgftree, grid_points, wrapper_komi,
                             i_p.requested_handicap);
     sgfAddProperty(sgftree.root, "PW",
                    player_is_white ? YOUR_NAME : CPU_NAME);
@@ -644,4 +670,74 @@ esp_gnugo_dump_sgf(char *filename)
     fclose(f);
 }
 
+/* ------------------------------------------------------------------ *
+ *  Platform sleep                                                     *
+ * ------------------------------------------------------------------ */
 
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+static void platform_sleep_ms(int ms) { vTaskDelay(pdMS_TO_TICKS(ms)); }
+#else
+static void platform_sleep_ms(int ms) { usleep(ms * 1000); }
+#endif
+
+/* ------------------------------------------------------------------ *
+ *  Engine thread main (called from Focus GnuGoTask)                   *
+ * ------------------------------------------------------------------ */
+
+void
+go_engine_thread_main(engine_context_t *ctx)
+{
+    printf("[engine] Thread starting...\n");
+    ctx->engine_status = ENGINE_STATUS_STARTING;
+
+    bool player_is_white;
+    esp_gnugo_start(ctx->init_params, &player_is_white);
+    ctx->player_is_white_out = player_is_white ? 1 : 0;
+
+    /* Copy initial state to snapshot */
+    memcpy(&ctx->state_snapshot, &game_state, sizeof(esp_gnugo_game_state_t));
+    ctx->state_ready = 1;
+
+    ctx->engine_status = ENGINE_STATUS_READY;
+    printf("[engine] Ready. board_size=%d\n", grid_points);
+
+    while (!ctx->quit_requested) {
+        esp_gnugo_state_t st = game_state.state;
+
+        if (st == ESP_GNUGO_STATE_WAITING_FOR_CPU) {
+            ctx->engine_status = ENGINE_STATUS_THINKING;
+            printf("[engine] Computing move...\n");
+            esp_gnugo_get_computer_move();
+            memcpy(&ctx->state_snapshot, &game_state,
+                   sizeof(esp_gnugo_game_state_t));
+            ctx->state_ready = 1;
+            ctx->engine_status = ENGINE_STATUS_READY;
+        } else if (st == ESP_GNUGO_STATE_WAITING_FOR_PLAYER ||
+                   st == ESP_GNUGO_STATE_GAME_OVER) {
+            if (ctx->command_ready) {
+                engine_signal_t cmd = ctx->command_buffer;
+                ctx->command_ready = 0;
+                printf("[engine] Processing command: cmd=%d pos=%d\n",
+                       cmd.cmd, cmd.pos);
+                esp_gnugo_set_player_command(cmd);
+                memcpy(&ctx->state_snapshot, &game_state,
+                       sizeof(esp_gnugo_game_state_t));
+                ctx->state_ready = 1;
+            } else {
+                platform_sleep_ms(10);
+            }
+        } else {
+            platform_sleep_ms(10);
+        }
+    }
+
+    /* Save SGF before exiting */
+    if (sgf_outbuf_len > 0 && sgfname[0] != '-') {
+        esp_gnugo_dump_sgf(sgfname);
+    }
+
+    ctx->engine_status = ENGINE_STATUS_STOPPED;
+    printf("[engine] Thread exiting.\n");
+}

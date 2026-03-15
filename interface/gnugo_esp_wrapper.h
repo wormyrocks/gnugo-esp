@@ -43,7 +43,7 @@ typedef enum
 // Engine => UI
 typedef struct
 {
-    uint8_t board[9][9];
+    uint8_t board[19][19];
     char white_last_move[20];
     char black_last_move[20];
     float score;
@@ -52,6 +52,7 @@ typedef struct
     int move_number;
     int white_turn;
     int level;
+    int board_size;
     esp_gnugo_state_t state;
     esp_gnugo_event_t last_event;
 } esp_gnugo_game_state_t;
@@ -66,6 +67,7 @@ typedef enum
     COMMAND_RESTART,
     COMMAND_SAVE,
     COMMAND_FORCEQUIT,
+    COMMAND_UNDO,
 } go_command_t;
 
 // UI => Engine
@@ -96,11 +98,34 @@ typedef struct
 
 esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t, bool*);
 void esp_gnugo_restart(int level, bool player_is_white);
-esp_gnugo_state_t esp_gnugo_get_computer_move();
+esp_gnugo_state_t esp_gnugo_get_computer_move(void);
 int esp_gnugo_set_player_command(engine_signal_t);
 int esp_gnugo_pos_from_xy(int x, int y);
-esp_gnugo_game_state_t *esp_gnugo_get_game_state();
-esp_gnugo_state_t esp_gnugo_get_state();
+esp_gnugo_game_state_t *esp_gnugo_get_game_state(void);
+esp_gnugo_state_t esp_gnugo_get_state(void);
 void esp_gnugo_dump_sgf(char *sgfname);
 char *esp_gnugo_send_gtp(const char *cmd);
+
+/* ------------------------------------------------------------------ *
+ *  Thread-safe engine context for Focus UI integration                *
+ * ------------------------------------------------------------------ */
+
+#define ENGINE_STATUS_STOPPED  0
+#define ENGINE_STATUS_STARTING 1
+#define ENGINE_STATUS_READY    2
+#define ENGINE_STATUS_THINKING 3
+
+typedef struct {
+    esp_gnugo_game_init_t init_params;
+    esp_gnugo_game_state_t state_snapshot;  /* engine writes, UI reads */
+    volatile int state_ready;               /* flag: new state available */
+    engine_signal_t command_buffer;          /* UI writes, engine reads */
+    volatile int command_ready;             /* flag: command available */
+    volatile int engine_status;             /* ENGINE_STATUS_* */
+    volatile int quit_requested;
+    int player_is_white_out;               /* set by engine after start */
+} engine_context_t;
+
+void go_engine_thread_main(engine_context_t *ctx);
+
 #endif
