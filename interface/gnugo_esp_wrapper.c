@@ -27,6 +27,13 @@ static int passes = 0;
 static int game_is_over = 0;
 static bool undo_allowed = false;
 
+/* Move tracking — avoids querying move_history via GTP. */
+static int  total_moves = 0;
+static int  last_move_pos  = -1;   /* board POS, or -1 (none), or 0 (pass) */
+static int  last_move_color = 0;   /* BLACK or WHITE */
+static int  prev_move_pos  = -1;
+static int  prev_move_color = 0;
+
 /* Local mirrors of GTP-controlled settings (avoid reading gnugo globals). */
 static float wrapper_komi  = 6.5f;
 static int   wrapper_level = 0;
@@ -166,31 +173,16 @@ init_sgf(Gameinfo *ginfo)
 static void
 esp_gnugo_update_board_state(void)
 {
-    /* ---- Board: read from list_stones ---- */
+    /* ---- Board: read directly from GNU Go's board[] array ---- */
     {
         uint8_t new_board[19][19] = {{0}};
+        static const uint8_t color_map[3] = {GRID_EMPTY, GRID_WHITE, GRID_BLACK};
 
-        static const char *cmds[2]      = {"list_stones black\n",
-                                           "list_stones white\n"};
-        static const uint8_t vals[2]    = {GRID_BLACK, GRID_WHITE};
+        for (int i = 0; i < grid_points; i++)
+            for (int j = 0; j < grid_points; j++)
+                new_board[j][i] = color_map[BOARD(i, j)];
 
-        for (int c = 0; c < 2; c++) {
-            char *resp = gtp_send(cmds[c]);
-            if (!resp) continue;
-            /* Response: "= A1 B2 ...\n\n" */
-            char *p = resp + 1;
-            char tok[16];
-            int n;
-            while (sscanf(p, " %15s%n", tok, &n) == 1) {
-                int vi, vj;
-                if (parse_gtp_vertex(tok, &vi, &vj))
-                    new_board[vj][vi] = vals[c];
-                p += n;
-            }
-            free(resp);
-        }
-
-        /* Capture animation: if a stone vanished, flash it for one frame */
+        /* Capture animation: if a stone vanished, mark it dead for one frame */
         for (int x = 0; x < grid_points; x++)
             for (int y = 0; y < grid_points; y++) {
                 uint8_t prev = game_state.board[x][y];
@@ -203,45 +195,11 @@ esp_gnugo_update_board_state(void)
             }
     }
 
-    /* ---- Move history: count moves, get last two ---- */
-    int movenum = 0;
-    char last_color[16]  = {0}, last_vertex[16]  = {0};
-    char prev_color[16]  = {0}, prev_vertex[16]  = {0};
-    {
-        char *mresp = gtp_send("move_history\n");
-        if (mresp && mresp[0] == '=') {
-            char *p = mresp + 1;
-            while (*p == ' ') p++;
-            int entry = 0;
-            char col[16], vtx[16];
-            int n;
-            while (sscanf(p, "%15s %15s%n", col, vtx, &n) == 2) {
-                movenum++;
-                if (entry == 0) {
-                    memcpy(last_color,  col, sizeof(last_color));
-                    memcpy(last_vertex, vtx, sizeof(last_vertex));
-                } else if (entry == 1) {
-                    memcpy(prev_color,  col, sizeof(prev_color));
-                    memcpy(prev_vertex, vtx, sizeof(prev_vertex));
-                }
-                entry++;
-                p += n;
-                while (*p == '\n' || *p == '\r') p++;
-            }
-        }
-        free(mresp);
-    }
-
-    /* ---- Captures: gtp "captures <color>" returns stones taken FROM that color ----
-     *   captures white  =>  gnugo black_captured  =>  game_state.black_captured
-     *   captures black  =>  gnugo white_captured  =>  game_state.white_captured  */
-    int new_bc, new_wc;
-    {
-        char *bc_r = gtp_send("captures white\n");
-        char *wc_r = gtp_send("captures black\n");
-        new_bc = gtp_parse_int(bc_r); free(bc_r);
-        new_wc = gtp_parse_int(wc_r); free(wc_r);
-    }
+    /* ---- Captures: read directly from GNU Go globals ----
+     *   GNU Go's black_captured = stones captured FROM black = white's captures
+     *   GNU Go's white_captured = stones captured FROM white = black's captures */
+    int new_bc = white_captured;
+    int new_wc = black_captured;
 
     /* ---- Game state & events ---- */
     game_state.state = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
@@ -280,9 +238,9 @@ esp_gnugo_update_board_state(void)
             game_state.score = 0.0f;
         }
     } else {
-        if (movenum == 0) {
+        if (total_moves == 0) {
             game_state.last_event = ESP_GNUGO_EVENT_NONE;
-        } else if (strncasecmp(last_vertex, "PASS", 4) == 0) {
+        } else if (last_move_pos <= 0) {
             game_state.last_event = ESP_GNUGO_EVENT_PASS;
         } else if (new_bc > game_state.black_captured ||
                    new_wc > game_state.white_captured) {
@@ -291,30 +249,27 @@ esp_gnugo_update_board_state(void)
             game_state.last_event = ESP_GNUGO_EVENT_PLAY;
         }
 
-        /* Last move strings */
+        /* Last move strings from tracked positions */
         memset(game_state.white_last_move, 0, sizeof(game_state.white_last_move));
         memset(game_state.black_last_move, 0, sizeof(game_state.black_last_move));
-        if (movenum > 0) {
-            char *dst = strncasecmp(last_color, "white", 5) == 0 ?
+        if (total_moves > 0 && last_move_pos > 0) {
+            char *dst = (last_move_color == WHITE) ?
                         game_state.white_last_move : game_state.black_last_move;
-            strncpy(dst, last_vertex, sizeof(game_state.white_last_move) - 1);
+            pos_to_gtp_vertex(last_move_pos, dst);
         }
-        if (movenum > 1) {
-            char *dst = strncasecmp(prev_color, "white", 5) == 0 ?
+        if (total_moves > 1 && prev_move_pos > 0) {
+            char *dst = (prev_move_color == WHITE) ?
                         game_state.white_last_move : game_state.black_last_move;
-            strncpy(dst, prev_vertex, sizeof(game_state.white_last_move) - 1);
+            pos_to_gtp_vertex(prev_move_pos, dst);
         }
 
-        char *sresp = gtp_send("estimate_score\n");
-        game_state.score = gtp_parse_score(sresp);
-        free(sresp);
     }
 
     game_state.black_captured = new_bc;
     game_state.white_captured = new_wc;
     game_state.level          = wrapper_level;
     game_state.white_turn     = (gameinfo->to_move == WHITE);
-    game_state.move_number    = movenum;
+    game_state.move_number    = total_moves;
     game_state.board_size     = grid_points;
 
     /* SGF buffer */
@@ -426,6 +381,9 @@ esp_gnugo_init_board_state(char *infile, bool player_is_white,
 
     gameinfo->game_record = sgftree;
     memset(&game_state, 0, sizeof(esp_gnugo_game_state_t));
+    total_moves = 0;
+    last_move_pos = -1;  last_move_color = 0;
+    prev_move_pos = -1;  prev_move_color = 0;
     esp_gnugo_update_board_state();
 }
 
@@ -492,6 +450,13 @@ process_move(int move, int did_resign)
         char *r = gtp_send(cmd);
         free(r);
     }
+
+    /* Track last moves */
+    prev_move_pos   = last_move_pos;
+    prev_move_color = last_move_color;
+    last_move_pos   = move;
+    last_move_color = gameinfo->to_move;
+    total_moves++;
 
     /* Record to SGF (pass recorded for resign too, matching prior behaviour) */
     sgftreeAddPlay(&sgftree, gameinfo->to_move, I(move), J(move));
@@ -565,6 +530,10 @@ esp_gnugo_set_player_command(engine_signal_t e)
             /* Flip to_move back by undo_count moves */
             for (int i = 0; i < undo_count; i++)
                 gameinfo->to_move = OTHER_COLOR(gameinfo->to_move);
+            /* Roll back move tracking */
+            total_moves = (total_moves > undo_count) ? total_moves - undo_count : 0;
+            last_move_pos = -1;  last_move_color = 0;
+            prev_move_pos = -1;  prev_move_color = 0;
             esp_gnugo_update_board_state();
         }
         return ok;
@@ -617,10 +586,18 @@ esp_gnugo_get_computer_move(void)
 
         /* Record to SGF */
         int vi, vj;
-        if (parse_gtp_vertex(vertex, &vi, &vj))
+        int is_vertex = parse_gtp_vertex(vertex, &vi, &vj);
+        if (is_vertex)
             sgftreeAddPlay(&sgftree, color, vi, vj);
         else
             sgftreeAddPlay(&sgftree, color, -1, -1);   /* PASS */
+
+        /* Track last moves */
+        prev_move_pos   = last_move_pos;
+        prev_move_color = last_move_color;
+        last_move_color = color;
+        last_move_pos   = is_vertex ? POS(vi, vj) : 0;
+        total_moves++;
 
         if (strncasecmp(vertex, "PASS", 4) == 0) {
             if (++passes == 2)
