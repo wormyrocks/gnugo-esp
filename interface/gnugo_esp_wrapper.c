@@ -505,6 +505,8 @@ esp_gnugo_set_player_command(engine_signal_t e)
         free(r);
         if (legal)
             process_move(move_if_any, 0);
+        else
+            game_state.last_event = ESP_GNUGO_EVENT_ILLEGAL;
         return legal;
     }
 
