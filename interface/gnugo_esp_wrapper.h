@@ -123,6 +123,7 @@ typedef struct {
     volatile int command_ready;             /* flag: command available */
     volatile int engine_status;             /* ENGINE_STATUS_* */
     volatile int quit_requested;
+    volatile int two_player;               /* both sides human-controlled */
     int player_is_white_out;               /* set by engine after start */
 } engine_context_t;
 

@@ -182,17 +182,10 @@ esp_gnugo_update_board_state(void)
             for (int j = 0; j < grid_points; j++)
                 new_board[j][i] = color_map[BOARD(i, j)];
 
-        /* Capture animation: if a stone vanished, mark it dead for one frame */
+        /* Copy board state directly — the UI handles capture animations */
         for (int x = 0; x < grid_points; x++)
-            for (int y = 0; y < grid_points; y++) {
-                uint8_t prev = game_state.board[x][y];
-                uint8_t cur  = new_board[x][y];
-                if (cur == GRID_EMPTY &&
-                    (prev == GRID_BLACK || prev == GRID_WHITE))
-                    game_state.board[x][y] = prev + 10;   /* GRID_DEAD_* */
-                else
-                    game_state.board[x][y] = cur;
-            }
+            for (int y = 0; y < grid_points; y++)
+                game_state.board[x][y] = new_board[x][y];
     }
 
     /* ---- Captures: read directly from GNU Go globals ----
@@ -687,7 +680,7 @@ go_engine_thread_main(engine_context_t *ctx)
     while (!ctx->quit_requested) {
         esp_gnugo_state_t st = game_state.state;
 
-        if (st == ESP_GNUGO_STATE_WAITING_FOR_CPU) {
+        if (st == ESP_GNUGO_STATE_WAITING_FOR_CPU && !ctx->two_player) {
             ctx->engine_status = ENGINE_STATUS_THINKING;
             printf("[engine] Computing move...\n");
             esp_gnugo_get_computer_move();
@@ -696,6 +689,7 @@ go_engine_thread_main(engine_context_t *ctx)
             ctx->state_ready = 1;
             ctx->engine_status = ENGINE_STATUS_READY;
         } else if (st == ESP_GNUGO_STATE_WAITING_FOR_PLAYER ||
+                   st == ESP_GNUGO_STATE_WAITING_FOR_CPU ||
                    st == ESP_GNUGO_STATE_GAME_OVER) {
             if (ctx->command_ready) {
                 engine_signal_t cmd = ctx->command_buffer;
