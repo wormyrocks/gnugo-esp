@@ -666,6 +666,11 @@ go_engine_thread_main(engine_context_t *ctx)
     printf("[engine] Thread starting...\n");
     ctx->engine_status = ENGINE_STATUS_STARTING;
 
+    /* Reset global state left over from any previous game so the assertion
+       in esp_gnugo_start() passes when the engine is restarted. */
+    game_state.state = ESP_GNUGO_STATE_NOT_STARTED;
+    game_is_over = 0;
+
     bool player_is_white;
     esp_gnugo_start(ctx->init_params, &player_is_white);
     ctx->player_is_white_out = player_is_white ? 1 : 0;
