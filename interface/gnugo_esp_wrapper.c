@@ -21,7 +21,6 @@ static Gameinfo *gameinfo = &gameinfo_;
 static char sgfname[128] = {0};
 static SGFTree sgftree;
 static esp_gnugo_game_state_t game_state;
-static board_update_callback update_cb;
 static int sgf_initialized = 0;
 static int passes = 0;
 static int game_is_over = 0;
@@ -76,9 +75,6 @@ gtp_send_internal(const char *cmd, bool echo)
 
 /* Internal use: echo command + response to stdout. */
 static char *gtp_send(const char *cmd) { return gtp_send_internal(cmd, true); }
-
-/* Public: send one GTP command, return raw response. No echo prefixes. */
-char *esp_gnugo_send_gtp(const char *cmd) { return gtp_send_internal(cmd, false); }
 
 /* ------------------------------------------------------------------ *
  *  GTP response parsers                                               *
@@ -164,6 +160,9 @@ init_sgf(Gameinfo *ginfo)
     if (ginfo->handicap > 0)
         sgffile_recordboard(sgftree.root);
 }
+
+/* Forward declarations for internal functions */
+static void esp_gnugo_restart(int requested_level, bool player_is_white);
 
 /* ------------------------------------------------------------------ *
  *  Board state update                                                 *
@@ -274,8 +273,6 @@ esp_gnugo_update_board_state(void)
     writesgf_fd(sgftree.root, sgf_outfd);
     fclose(sgf_outfd);
 
-    if (update_cb != NULL)
-        update_cb(&game_state);
 }
 
 /* ------------------------------------------------------------------ *
@@ -384,17 +381,15 @@ esp_gnugo_init_board_state(char *infile, bool player_is_white,
  *  Public API                                                         *
  * ------------------------------------------------------------------ */
 
-static esp_gnugo_game_init_t i_p;
+static int restart_handicap = 0;
 
-esp_gnugo_state_t
+static esp_gnugo_state_t
 esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
 {
-    memcpy(&i_p, &init_params, sizeof(esp_gnugo_game_init_t));
     assert(game_state.state == ESP_GNUGO_STATE_NOT_STARTED);
 
+    restart_handicap = init_params.requested_handicap;
     passes       = 0;
-    autolevel_on = init_params.autolevel;
-    update_cb    = init_params.update_callback;
     undo_allowed = init_params.undo_allowed;
     wrapper_komi = init_params.komi;
 
@@ -471,7 +466,7 @@ process_move(int move, int did_resign)
     esp_gnugo_update_board_state();
 }
 
-int
+static int
 esp_gnugo_set_player_command(engine_signal_t e)
 {
     go_command_t go_command = e.cmd;
@@ -542,7 +537,7 @@ esp_gnugo_set_player_command(engine_signal_t e)
     }
 }
 
-void
+static void
 esp_gnugo_restart(int requested_level, bool player_is_white)
 {
     passes       = 0;
@@ -550,15 +545,15 @@ esp_gnugo_restart(int requested_level, bool player_is_white)
     sgfFreeNode(sgftree.root);
     sgftree_clear(&sgftree);
     sgftreeCreateHeaderNode(&sgftree, grid_points, wrapper_komi,
-                            i_p.requested_handicap);
+                            restart_handicap);
     sgfAddProperty(sgftree.root, "PW",
                    player_is_white ? YOUR_NAME : CPU_NAME);
     gameinfo_clear(gameinfo);
     esp_gnugo_init_board_state(NULL, player_is_white,
-                               i_p.requested_handicap, requested_level);
+                               restart_handicap, requested_level);
 }
 
-esp_gnugo_state_t
+static esp_gnugo_state_t
 esp_gnugo_get_computer_move(void)
 {
     init_sgf(gameinfo);
@@ -615,18 +610,6 @@ int
 esp_gnugo_pos_from_xy(int x, int y)
 {
     return POS(x, y);
-}
-
-esp_gnugo_game_state_t *
-esp_gnugo_get_game_state(void)
-{
-    return &game_state;
-}
-
-esp_gnugo_state_t
-esp_gnugo_get_state(void)
-{
-    return game_state.state;
 }
 
 /*

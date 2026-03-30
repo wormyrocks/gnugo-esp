@@ -7,12 +7,8 @@
 #define GRID_EMPTY 0
 #define GRID_WHITE 1
 #define GRID_BLACK 2
-#define GRID_STRANGE 3
-
 #define GRID_DEAD_WHITE 11
 #define GRID_DEAD_BLACK 12
-
-#define GRID_HOSHI 10
 
 #define YOUR_NAME "You"
 #define CPU_NAME "CPU"
@@ -65,7 +61,6 @@ typedef enum
     COMMAND_PLAY,
     COMMAND_RESIGN,
     COMMAND_RESTART,
-    COMMAND_SAVE,
     COMMAND_FORCEQUIT,
     COMMAND_UNDO,
 } go_command_t;
@@ -78,13 +73,10 @@ typedef struct __attribute__((packed))
 } engine_signal_t;
 
 // UI => Engine
-typedef void (*board_update_callback)(const esp_gnugo_game_state_t *);
-// UI => Engine
 typedef struct
 {
     bool player_is_white;
     bool undo_allowed;
-    bool autolevel;
     int start_level;
     float komi;
     int random_seed;
@@ -92,19 +84,11 @@ typedef struct
     int requested_handicap;
     char *infile;
     char *outfile;
-    board_update_callback update_callback;
     int board_size;
 } esp_gnugo_game_init_t;
 
-esp_gnugo_state_t esp_gnugo_start(esp_gnugo_game_init_t, bool*);
-void esp_gnugo_restart(int level, bool player_is_white);
-esp_gnugo_state_t esp_gnugo_get_computer_move(void);
-int esp_gnugo_set_player_command(engine_signal_t);
 int esp_gnugo_pos_from_xy(int x, int y);
-esp_gnugo_game_state_t *esp_gnugo_get_game_state(void);
-esp_gnugo_state_t esp_gnugo_get_state(void);
 void esp_gnugo_dump_sgf(char *sgfname);
-char *esp_gnugo_send_gtp(const char *cmd);
 
 /* ------------------------------------------------------------------ *
  *  Thread-safe engine context for Focus UI integration                *
