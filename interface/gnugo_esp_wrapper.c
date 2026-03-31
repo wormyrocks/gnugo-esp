@@ -279,57 +279,118 @@ esp_gnugo_update_board_state(void)
  *  Board initialisation                                               *
  * ------------------------------------------------------------------ */
 
-/* Comment in 'infile' takes precedence over player_is_white. */
+/*
+ * Load a game from the SGF tree already parsed into sgftree.
+ * Uses GTP loadsgf :memory: to replay moves into the engine.
+ * Reads custom properties (XC/XZ/XV) into ctx if provided.
+ * Returns 1 on success, 0 on failure.
+ */
+static int
+load_game_from_sgftree(bool *player_is_white, engine_context_t *ctx)
+{
+    /* Detect who is the human from the SGF PW property */
+    char *pw_name;
+    if (sgfGetCharProperty(sgftree.root, "PW", &pw_name)) {
+        if (!strncmp(pw_name, CPU_NAME, sizeof(CPU_NAME)))
+            *player_is_white = false;
+        else if (!strncmp(pw_name, YOUR_NAME, sizeof(YOUR_NAME))) {
+            *player_is_white = true;
+            printf("Player is white.\n");
+        }
+    }
+
+    /* Replay moves into engine via GTP.  If we have the SGF in a
+     * memory buffer (ctx->sgf_buf), use :memory: mode to avoid
+     * filesystem access.  Otherwise fall back to the wrapper's
+     * sgftree (which was already parsed from a file). */
+    char *resp;
+    if (ctx && ctx->sgf_buf && ctx->sgf_buf_len > 0) {
+        gtp_set_loadsgf_buffer(ctx->sgf_buf, ctx->sgf_buf_len);
+        resp = gtp_send("loadsgf :memory:\n");
+    } else {
+        /* Fallback: re-read from the file that sgftree was loaded from.
+         * This path is used when loading from /flash/out.sgf on cold boot
+         * where the file was already read into sgftree. */
+        resp = gtp_send("loadsgf :memory:\n");
+    }
+
+    if (!resp || resp[0] != '=') {
+        free(resp);
+        return 0;
+    }
+
+    char color_str[16] = {0};
+    sscanf(resp + 1, " %15s", color_str);
+    gameinfo->to_move =
+        strncasecmp(color_str, "white", 5) == 0 ? WHITE : BLACK;
+    free(resp);
+
+    char *hresp = gtp_send("get_handicap\n");
+    gameinfo->handicap = gtp_parse_int(hresp);
+    free(hresp);
+
+    sgfOverwritePropertyInt(sgftree.root, "HA", gameinfo->handicap);
+    gameinfo->computer_player = *player_is_white ? BLACK : WHITE;
+    sgf_initialized = 1;
+
+    /* Sync grid_points with the board size from the loaded SGF */
+    char *bresp = gtp_send("query_boardsize\n");
+    int loaded_size = gtp_parse_int(bresp);
+    free(bresp);
+    if (loaded_size > 0)
+        grid_points = loaded_size;
+
+    /* Read custom UI state properties */
+    if (ctx) {
+        char *val;
+        if (sgfGetCharProperty(sgftree.root, "XC", &val))
+            sscanf(val, "%d,%d", &ctx->cursor_x, &ctx->cursor_y);
+        if (sgfGetCharProperty(sgftree.root, "XZ", &val))
+            ctx->zoomed = atoi(val);
+        if (sgfGetCharProperty(sgftree.root, "XV", &val))
+            sscanf(val, "%d,%d", &ctx->viewport_x, &ctx->viewport_y);
+    }
+
+    return 1;
+}
+
 static void
-esp_gnugo_init_board_state(char *infile, bool player_is_white,
+esp_gnugo_init_board_state(engine_context_t *ctx, bool player_is_white,
                            int requested_handicap, int requested_level)
 {
     gameinfo_clear(gameinfo);
     int did_load = 0;
 
-    if (infile) {
+    /* Try to load from memory buffer */
+    if (ctx && ctx->sgf_buf && ctx->sgf_buf_len > 0) {
+        if (sgftree_readbuf(&sgftree, ctx->sgf_buf, ctx->sgf_buf_len)) {
+            printf("Resumed game from memory buffer (%zu bytes).\n",
+                   ctx->sgf_buf_len);
+            did_load = load_game_from_sgftree(&player_is_white, ctx);
+        }
+    }
+
+    /* Try to load from file */
+    if (!did_load && ctx && ctx->init_params.infile) {
+        char *infile = ctx->init_params.infile;
         struct stat info;
         if (stat(infile, &info) >= 0 && info.st_size > 0) {
             if (sgftree_readfile(&sgftree, infile)) {
                 printf("Resumed game from %s.\n", infile);
-
-                /* Detect who is the human from the SGF PW property */
-                char *pw_name;
-                if (sgfGetCharProperty(sgftree.root, "PW", &pw_name)) {
-                    if (!strncmp(pw_name, CPU_NAME, sizeof(CPU_NAME)))
-                        player_is_white = false;
-                    else if (!strncmp(pw_name, YOUR_NAME, sizeof(YOUR_NAME))) {
-                        player_is_white = true;
-                        printf("Player is white.\n");
-                    }
+                /* Set up buffer for loadsgf :memory: — read the file into
+                 * memory so the GTP command doesn't need filesystem access */
+                FILE *f = fopen(infile, "r");
+                if (f) {
+                    char *filebuf = malloc(info.st_size);
+                    size_t n = fread(filebuf, 1, info.st_size, f);
+                    fclose(f);
+                    gtp_set_loadsgf_buffer(filebuf, n);
+                    did_load = load_game_from_sgftree(&player_is_white, ctx);
+                    free(filebuf);
                 }
-
-                /* Use GTP loadsgf to replay the game into the engine */
-                char cmd[256];
-                snprintf(cmd, sizeof(cmd), "loadsgf %s\n", infile);
-                char *resp = gtp_send(cmd);
-                if (resp && resp[0] == '=') {
-                    did_load       = 1;
-                    sgf_initialized = 1;
-
-                    char color_str[16] = {0};
-                    sscanf(resp + 1, " %15s", color_str);
-                    gameinfo->to_move =
-                        strncasecmp(color_str, "white", 5) == 0 ? WHITE : BLACK;
-
-                    char *hresp = gtp_send("get_handicap\n");
-                    gameinfo->handicap = gtp_parse_int(hresp);
-                    free(hresp);
-
-                    sgfOverwritePropertyInt(sgftree.root, "HA",
-                                            gameinfo->handicap);
-                    gameinfo->computer_player =
-                        player_is_white ? BLACK : WHITE;
-                }
-                free(resp);
             }
         } else {
-            printf("Empty file. Starting new game.\n");
+            printf("No saved game. Starting new game.\n");
         }
     }
 
@@ -384,8 +445,9 @@ esp_gnugo_init_board_state(char *infile, bool player_is_white,
 static int restart_handicap = 0;
 
 static esp_gnugo_state_t
-esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
+esp_gnugo_start(engine_context_t *ctx, bool *player_is_white_)
 {
+    esp_gnugo_game_init_t init_params = ctx->init_params;
     assert(game_state.state == ESP_GNUGO_STATE_NOT_STARTED);
 
     restart_handicap = init_params.requested_handicap;
@@ -395,10 +457,16 @@ esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
 
     grid_points = init_params.board_size > 0 ? init_params.board_size : 9;
 
-    init_gnugo(init_params.memory_mb, init_params.random_seed);
+    /* init_gnugo must only be called once — it initializes DFA tables,
+     * hash caches, and transformation data that cannot be reinitialized. */
+    static int gnugo_initialized = 0;
+    if (!gnugo_initialized) {
+        init_gnugo(init_params.memory_mb, init_params.random_seed);
 #ifndef CONFIG_DISABLE_MONTE_CARLO
-    choose_mc_patterns("montegnu_classic");
+        choose_mc_patterns("montegnu_classic");
 #endif
+        gnugo_initialized = 1;
+    }
 
     /* boardsize clears the board and primes gtp_boardsize for coord parsing */
     char cmd[32];
@@ -409,12 +477,8 @@ esp_gnugo_start(esp_gnugo_game_init_t init_params, bool *player_is_white_)
     r = gtp_send(cmd); free(r);
 
     strcpy(sgfname, "-");
-    if (init_params.outfile) {
-        strcpy(sgfname, init_params.outfile);
-        printf("Game may be manually saved to %s\n", init_params.outfile);
-    }
 
-    esp_gnugo_init_board_state(init_params.infile, init_params.player_is_white,
+    esp_gnugo_init_board_state(ctx, init_params.player_is_white,
                                init_params.requested_handicap,
                                init_params.start_level);
 
@@ -655,7 +719,7 @@ go_engine_thread_main(engine_context_t *ctx)
     game_is_over = 0;
 
     bool player_is_white;
-    esp_gnugo_start(ctx->init_params, &player_is_white);
+    esp_gnugo_start(ctx, &player_is_white);
     ctx->player_is_white_out = player_is_white ? 1 : 0;
 
     /* Copy initial state to snapshot */
@@ -696,11 +760,33 @@ go_engine_thread_main(engine_context_t *ctx)
         }
     }
 
-    /* Save SGF before exiting */
-    if (sgf_outbuf_len > 0 && sgfname[0] != '-') {
-        esp_gnugo_dump_sgf(sgfname);
+    /* Write UI state as custom SGF properties on the root node */
+    {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%d,%d", ctx->cursor_x, ctx->cursor_y);
+        sgfOverwriteProperty(sgftree.root, "XC", buf);
+        snprintf(buf, sizeof(buf), "%d", ctx->zoomed);
+        sgfOverwriteProperty(sgftree.root, "XZ", buf);
+        snprintf(buf, sizeof(buf), "%d,%d", ctx->viewport_x, ctx->viewport_y);
+        sgfOverwriteProperty(sgftree.root, "XV", buf);
     }
 
+    /* Regenerate SGF buffer with UI state included */
+    init_sgf(gameinfo);
+    if (sgf_outptr)
+        free(sgf_outptr);
+    sgf_outptr = NULL;
+    sgf_outbuf_len = 0;
+    FILE *sgf_outfd = open_memstream(&sgf_outptr, &sgf_outbuf_len);
+    if (sgf_outfd) {
+        writesgf_fd(sgftree.root, sgf_outfd);
+        fclose(sgf_outfd);
+    }
+
+    /* Expose buffer to caller instead of writing to filesystem */
+    ctx->sgf_buf = sgf_outptr;
+    ctx->sgf_buf_len = sgf_outbuf_len;
+
     ctx->engine_status = ENGINE_STATUS_STOPPED;
-    printf("[engine] Thread exiting.\n");
+    printf("[engine] Thread exiting. SGF buffer: %zu bytes.\n", sgf_outbuf_len);
 }

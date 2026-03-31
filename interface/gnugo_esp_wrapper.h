@@ -109,6 +109,16 @@ typedef struct {
     volatile int quit_requested;
     volatile int two_player;               /* both sides human-controlled */
     int player_is_white_out;               /* set by engine after start */
+
+    /* SGF buffer — engine exposes on exit */
+    const char *sgf_buf;                   /* pointer to SGF data (engine-owned) */
+    size_t sgf_buf_len;                    /* SGF data length */
+
+    /* UI state — UI writes before engine exit, engine writes to SGF.
+     * On resume, engine reads from SGF and populates these for the UI. */
+    int cursor_x, cursor_y;               /* grid coordinates */
+    int zoomed;                            /* 0 = full view, 1 = zoomed */
+    int viewport_x, viewport_y;           /* zoomed viewport origin (19x19) */
 } engine_context_t;
 
 void go_engine_thread_main(engine_context_t *ctx);

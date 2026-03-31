@@ -86,6 +86,8 @@ int gtp_decode_move(char *s, int *color, int *i, int *j);
 void gtp_print_vertices(int n, int movei[], int movej[]);
 void gtp_print_vertex(int i, int j);
 
+void gtp_set_loadsgf_buffer(const char *buf, size_t len);
+
 extern FILE *gtp_output_file;
 
 /*

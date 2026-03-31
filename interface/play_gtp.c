@@ -38,6 +38,17 @@
 static int report_uncertainty = 0;
 static int gtp_orientation = 0;
 
+/* Optional memory buffer for loadsgf ":memory:" mode. */
+static const char *loadsgf_buf = NULL;
+static size_t loadsgf_buf_len = 0;
+
+void
+gtp_set_loadsgf_buffer(const char *buf, size_t len)
+{
+  loadsgf_buf = buf;
+  loadsgf_buf_len = len;
+}
+
 static void gtp_print_code(int c);
 static void gtp_print_vertices2(int n, int *moves);
 static void rotate_on_input(int ai, int aj, int *bi, int *bj);
@@ -853,8 +864,13 @@ gtp_loadsgf(char *s)
     return gtp_failure("missing filename");
 
   sgftree_clear(&sgftree);
-  if (!sgftree_readfile(&sgftree, filename))
-    return gtp_failure("cannot open or parse '%s'", filename);
+  if (strcmp(filename, ":memory:") == 0) {
+    if (!loadsgf_buf || !sgftree_readbuf(&sgftree, loadsgf_buf, loadsgf_buf_len))
+      return gtp_failure("cannot parse SGF from memory buffer");
+  } else {
+    if (!sgftree_readfile(&sgftree, filename))
+      return gtp_failure("cannot open or parse '%s'", filename);
+  }
 
   if (nread == 1)
     color_to_move = gameinfo_play_sgftree_rot(&gameinfo, &sgftree, NULL,

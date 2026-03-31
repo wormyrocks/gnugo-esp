@@ -1239,6 +1239,52 @@ readsgffile(const char *filename)
 }
 
 
+/*
+ * Like readsgffile(), but reads from a memory buffer instead of a file.
+ * Uses fmemopen() to wrap the buffer as a FILE*.
+ */
+
+SGFNode *
+readsgfbuf(const char *buf, size_t len)
+{
+  SGFNode *root;
+  int tmpi = 0;
+
+  sgffile = fmemopen((void *)buf, len, "r");
+  if (!sgffile)
+    return NULL;
+
+  nexttoken();
+  gametree(&root, NULL, LAX_SGF);
+
+  fclose(sgffile);
+
+  if (sgferr) {
+    fprintf(stderr, "Parse error: %s at position %d\n", sgferr, sgferrpos);
+    sgfFreeNode(root);
+    return NULL;
+  }
+
+  /* perform some simple checks on the file */
+  if (!sgfGetIntProperty(root, "GM", &tmpi)) {
+    if (VERBOSE_WARNINGS)
+      fprintf(stderr, "Couldn't find the game type (GM) attribute!\n");
+  }
+  else if (tmpi != 1) {
+    fprintf(stderr, "SGF file might be for game other than go: %d\n", tmpi);
+    fprintf(stderr, "Trying to load anyway.\n");
+  }
+
+  if (!sgfGetIntProperty(root, "FF", &tmpi)) {
+    if (VERBOSE_WARNINGS)
+      fprintf(stderr, "Can not determine SGF spec version (FF)!\n");
+  }
+  else if ((tmpi < 3 || tmpi > 4) && VERBOSE_WARNINGS)
+    fprintf(stderr, "Unsupported SGF spec version: %d\n", tmpi);
+
+  return root;
+}
+
 
 /* ================================================================ */
 /*                          Write SGF tree                          */

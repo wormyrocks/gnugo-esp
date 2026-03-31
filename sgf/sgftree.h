@@ -113,6 +113,8 @@ SGFNode *sgfCreateHeaderNode(int boardsize, float komi, int handicap);
 
 /* Read SGF tree from file. */
 SGFNode *readsgffile(const char *filename);
+/* Read SGF tree from memory buffer. */
+SGFNode *readsgfbuf(const char *buf, size_t len);
 /* Specific solution for fuseki */
 SGFNode *readsgffilefuseki(const char *filename, int moves_per_game);
 
@@ -134,6 +136,7 @@ typedef struct SGFTree_t {
 
 void sgftree_clear(SGFTree *tree);
 int sgftree_readfile(SGFTree *tree, const char *infilename);
+int sgftree_readbuf(SGFTree *tree, const char *buf, size_t len);
 
 int sgftreeBack(SGFTree *tree);
 int sgftreeForward(SGFTree *tree);

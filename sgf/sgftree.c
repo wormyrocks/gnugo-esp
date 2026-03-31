@@ -49,6 +49,22 @@ sgftree_readfile(SGFTree *tree, const char *infilename)
   return 1;
 }
 
+int
+sgftree_readbuf(SGFTree *tree, const char *buf, size_t len)
+{
+  SGFNode *savetree = tree->root;
+
+  tree->root = readsgfbuf(buf, len);
+  if (tree->root == NULL) {
+    tree->root = savetree;
+    return 0;
+  }
+
+  sgfFreeNode(savetree);
+  tree->lastnode = NULL;
+  return 1;
+}
+
 
 /* Go back one node in the tree. If lastnode is NULL, go to the last
  * node (the one in main variant which has no children).
