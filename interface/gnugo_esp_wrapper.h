@@ -88,7 +88,6 @@ typedef struct
 } esp_gnugo_game_init_t;
 
 int esp_gnugo_pos_from_xy(int x, int y);
-void esp_gnugo_dump_sgf(char *sgfname);
 
 /* ------------------------------------------------------------------ *
  *  Thread-safe engine context for Focus UI integration                *

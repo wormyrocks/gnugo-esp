@@ -162,15 +162,17 @@ init_sgf(Gameinfo *ginfo)
 }
 
 /* Forward declarations for internal functions */
-static void esp_gnugo_restart(int requested_level, bool player_is_white);
+static void esp_gnugo_restart(engine_context_t *ctx, int requested_level, bool player_is_white);
 
 /* ------------------------------------------------------------------ *
  *  Board state update                                                 *
  * ------------------------------------------------------------------ */
 
-/* by convention, all updates to game_state happen in this function */
+/* by convention, all updates to game_state happen in this function.
+ * Pass ctx to publish the fresh SGF snapshot to ctx->sgf_buf; pass NULL
+ * when the caller doesn't have a ctx (e.g. during restart). */
 static void
-esp_gnugo_update_board_state(void)
+esp_gnugo_update_board_state(engine_context_t *ctx)
 {
     /* ---- Board: read directly from GNU Go's board[] array ---- */
     {
@@ -264,15 +266,25 @@ esp_gnugo_update_board_state(void)
     game_state.move_number    = total_moves;
     game_state.board_size     = grid_points;
 
-    /* SGF buffer */
-    if (sgf_outptr)
-        free(sgf_outptr);
-    FILE *sgf_outfd = open_memstream(&sgf_outptr, &sgf_outbuf_len);
+    /* SGF buffer — build new first, publish atomically, then free old, so
+     * a UI thread reading ctx->sgf_buf never sees a dangling pointer if
+     * the engine task is killed mid-regeneration. */
+    char *new_ptr = NULL;
+    size_t new_len = 0;
+    FILE *sgf_outfd = open_memstream(&new_ptr, &new_len);
     assert(sgf_outfd != NULL);
     init_sgf(gameinfo);
     writesgf_fd(sgftree.root, sgf_outfd);
     fclose(sgf_outfd);
 
+    char *old_ptr = sgf_outptr;
+    sgf_outptr = new_ptr;
+    sgf_outbuf_len = new_len;
+    if (ctx) {
+        ctx->sgf_buf = new_ptr;
+        ctx->sgf_buf_len = new_len;
+    }
+    free(old_ptr);
 }
 
 /* ------------------------------------------------------------------ *
@@ -280,9 +292,31 @@ esp_gnugo_update_board_state(void)
  * ------------------------------------------------------------------ */
 
 /*
+ * Remove a named property from an SGF node (no-op if absent).
+ */
+static void
+remove_property(SGFNode *node, const char *name)
+{
+    short nam = name[0] | (name[1] << 8);
+    SGFProperty **pp = &node->props;
+    while (*pp) {
+        if ((*pp)->name == nam) {
+            SGFProperty *dead = *pp;
+            *pp = dead->next;
+            free(dead->value);
+            free(dead);
+        } else {
+            pp = &(*pp)->next;
+        }
+    }
+}
+
+/*
  * Load a game from the SGF tree already parsed into sgftree.
  * Uses GTP loadsgf :memory: to replay moves into the engine.
- * Reads custom properties (XC/XZ/XV) into ctx if provided.
+ * Reads custom properties (XC/XZ/XV) into ctx if provided, then strips
+ * them from the tree so they don't propagate to future SGF regenerations —
+ * the UI owns UI state and re-injects it on save.
  * Returns 1 on success, 0 on failure.
  */
 static int
@@ -340,7 +374,8 @@ load_game_from_sgftree(bool *player_is_white, engine_context_t *ctx)
     if (loaded_size > 0)
         grid_points = loaded_size;
 
-    /* Read custom UI state properties */
+    /* Read custom UI state into ctx, then strip from the tree so the
+     * engine never re-emits them — UI re-injects fresh values on save. */
     if (ctx) {
         char *val;
         if (sgfGetCharProperty(sgftree.root, "XC", &val))
@@ -350,6 +385,9 @@ load_game_from_sgftree(bool *player_is_white, engine_context_t *ctx)
         if (sgfGetCharProperty(sgftree.root, "XV", &val))
             sscanf(val, "%d,%d", &ctx->viewport_x, &ctx->viewport_y);
     }
+    remove_property(sgftree.root, "XC");
+    remove_property(sgftree.root, "XZ");
+    remove_property(sgftree.root, "XV");
 
     return 1;
 }
@@ -435,7 +473,7 @@ esp_gnugo_init_board_state(engine_context_t *ctx, bool player_is_white,
     total_moves = 0;
     last_move_pos = -1;  last_move_color = 0;
     prev_move_pos = -1;  prev_move_color = 0;
-    esp_gnugo_update_board_state();
+    esp_gnugo_update_board_state(ctx);
 }
 
 /* ------------------------------------------------------------------ *
@@ -488,7 +526,7 @@ esp_gnugo_start(engine_context_t *ctx, bool *player_is_white_)
 
 /* Play one move through GTP and update all bookkeeping. */
 static void
-process_move(int move, int did_resign)
+process_move(engine_context_t *ctx, int move, int did_resign)
 {
     init_sgf(gameinfo);
 
@@ -527,11 +565,11 @@ process_move(int move, int did_resign)
     if (passes)
         printf("passes: %d %d\n", passes, game_is_over);
 
-    esp_gnugo_update_board_state();
+    esp_gnugo_update_board_state(ctx);
 }
 
 static int
-esp_gnugo_set_player_command(engine_signal_t e)
+esp_gnugo_set_player_command(engine_context_t *ctx, engine_signal_t e)
 {
     go_command_t go_command = e.cmd;
     int move_if_any = e.pos;
@@ -542,7 +580,7 @@ esp_gnugo_set_player_command(engine_signal_t e)
     switch (go_command) {
     case COMMAND_PASS:
     case COMMAND_RESIGN:
-        process_move(0, (go_command == COMMAND_RESIGN));
+        process_move(ctx, 0, (go_command == COMMAND_RESIGN));
         return 1;
 
     case COMMAND_PLAY: {
@@ -556,14 +594,14 @@ esp_gnugo_set_player_command(engine_signal_t e)
         int legal = gtp_parse_int(r);
         free(r);
         if (legal)
-            process_move(move_if_any, 0);
+            process_move(ctx, move_if_any, 0);
         else
             game_state.last_event = ESP_GNUGO_EVENT_ILLEGAL;
         return legal;
     }
 
     case COMMAND_RESTART:
-        esp_gnugo_restart(game_state.level, (gameinfo->computer_player == BLACK));
+        esp_gnugo_restart(ctx, game_state.level, (gameinfo->computer_player == BLACK));
         return 1;
 
     case COMMAND_UNDO: {
@@ -588,7 +626,7 @@ esp_gnugo_set_player_command(engine_signal_t e)
             total_moves = (total_moves > undo_count) ? total_moves - undo_count : 0;
             last_move_pos = -1;  last_move_color = 0;
             prev_move_pos = -1;  prev_move_color = 0;
-            esp_gnugo_update_board_state();
+            esp_gnugo_update_board_state(ctx);
         }
         return ok;
     }
@@ -602,7 +640,7 @@ esp_gnugo_set_player_command(engine_signal_t e)
 }
 
 static void
-esp_gnugo_restart(int requested_level, bool player_is_white)
+esp_gnugo_restart(engine_context_t *ctx, int requested_level, bool player_is_white)
 {
     passes       = 0;
     game_is_over = 0;
@@ -613,12 +651,12 @@ esp_gnugo_restart(int requested_level, bool player_is_white)
     sgfAddProperty(sgftree.root, "PW",
                    player_is_white ? YOUR_NAME : CPU_NAME);
     gameinfo_clear(gameinfo);
-    esp_gnugo_init_board_state(NULL, player_is_white,
+    esp_gnugo_init_board_state(ctx, player_is_white,
                                restart_handicap, requested_level);
 }
 
 static esp_gnugo_state_t
-esp_gnugo_get_computer_move(void)
+esp_gnugo_get_computer_move(engine_context_t *ctx)
 {
     init_sgf(gameinfo);
 
@@ -666,7 +704,7 @@ esp_gnugo_get_computer_move(void)
     free(response);
     gameinfo->to_move = OTHER_COLOR(color);
 
-    esp_gnugo_update_board_state();
+    esp_gnugo_update_board_state(ctx);
     return game_state.state;
 }
 
@@ -674,21 +712,6 @@ int
 esp_gnugo_pos_from_xy(int x, int y)
 {
     return POS(x, y);
-}
-
-/*
- * Dump the in-memory SGF buffer to disk.  The buffer is only updated in
- * esp_gnugo_update_board_state, giving atomic, deterministic snapshots.
- */
-void
-esp_gnugo_dump_sgf(char *filename)
-{
-    if (sgf_outbuf_len == 0)
-        return;
-    printf("Game saved to %s (%d bytes).\n", filename, (int)sgf_outbuf_len);
-    FILE *f = fopen(filename, "w");
-    fwrite(sgf_outptr, sgf_outbuf_len, 1, f);
-    fclose(f);
 }
 
 /* ------------------------------------------------------------------ *
@@ -735,7 +758,7 @@ go_engine_thread_main(engine_context_t *ctx)
         if (st == ESP_GNUGO_STATE_WAITING_FOR_CPU && !ctx->two_player) {
             ctx->engine_status = ENGINE_STATUS_THINKING;
             printf("[engine] Computing move...\n");
-            esp_gnugo_get_computer_move();
+            esp_gnugo_get_computer_move(ctx);
             memcpy(&ctx->state_snapshot, &game_state,
                    sizeof(esp_gnugo_game_state_t));
             ctx->state_ready = 1;
@@ -748,7 +771,7 @@ go_engine_thread_main(engine_context_t *ctx)
                 ctx->command_ready = 0;
                 printf("[engine] Processing command: cmd=%d pos=%d\n",
                        cmd.cmd, cmd.pos);
-                esp_gnugo_set_player_command(cmd);
+                esp_gnugo_set_player_command(ctx, cmd);
                 memcpy(&ctx->state_snapshot, &game_state,
                        sizeof(esp_gnugo_game_state_t));
                 ctx->state_ready = 1;
@@ -759,33 +782,6 @@ go_engine_thread_main(engine_context_t *ctx)
             platform_sleep_ms(10);
         }
     }
-
-    /* Write UI state as custom SGF properties on the root node */
-    {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "%d,%d", ctx->cursor_x, ctx->cursor_y);
-        sgfOverwriteProperty(sgftree.root, "XC", buf);
-        snprintf(buf, sizeof(buf), "%d", ctx->zoomed);
-        sgfOverwriteProperty(sgftree.root, "XZ", buf);
-        snprintf(buf, sizeof(buf), "%d,%d", ctx->viewport_x, ctx->viewport_y);
-        sgfOverwriteProperty(sgftree.root, "XV", buf);
-    }
-
-    /* Regenerate SGF buffer with UI state included */
-    init_sgf(gameinfo);
-    if (sgf_outptr)
-        free(sgf_outptr);
-    sgf_outptr = NULL;
-    sgf_outbuf_len = 0;
-    FILE *sgf_outfd = open_memstream(&sgf_outptr, &sgf_outbuf_len);
-    if (sgf_outfd) {
-        writesgf_fd(sgftree.root, sgf_outfd);
-        fclose(sgf_outfd);
-    }
-
-    /* Expose buffer to caller instead of writing to filesystem */
-    ctx->sgf_buf = sgf_outptr;
-    ctx->sgf_buf_len = sgf_outbuf_len;
 
     ctx->engine_status = ENGINE_STATUS_STOPPED;
     printf("[engine] Thread exiting. SGF buffer: %zu bytes.\n", sgf_outbuf_len);
