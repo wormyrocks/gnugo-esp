@@ -3,6 +3,54 @@ INCLUDE_DIRECTORIES(${GNUGo_SOURCE_DIR}/engine)
 INCLUDE_DIRECTORIES(${GNUGo_SOURCE_DIR}/sgf)
 INCLUDE_DIRECTORIES(${GNUGo_SOURCE_DIR}/utils)
 
+# When cross-compiling (Emscripten), use pre-generated pattern .c files
+# instead of building and running host generator executables.
+if(GNUGO_PREGENERATED_PATTERNS)
+    SET(GG_BUILT_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/apatterns.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/dpatterns.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/handipat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/influence.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/barriers.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/endgame.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/conn.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/fusekipat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/aa_attackpat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/owl_vital_apat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/owl_attackpat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/owl_defendpat.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/fuseki9.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/fuseki13.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/fuseki19.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/josekidb.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/patterns.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/eyes.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/mcpat.c
+    )
+    SET(patterns_STAT_SRCS
+        connections.c
+        helpers.c
+        transform.c
+        ${GG_BUILT_SOURCES}
+    )
+    ADD_LIBRARY(patterns STATIC ${patterns_STAT_SRCS})
+    # Generated pattern code uses NULL for integer fields, pointer-to-int
+    # casts, and file-scope pointer arithmetic in initializers that GCC
+    # allows but Clang (Emscripten) rejects or treats as errors.
+    if(EMSCRIPTEN)
+        target_compile_options(patterns PRIVATE
+            -Wno-int-conversion
+            -Wno-incompatible-pointer-types
+            -Wno-literal-conversion
+            -Wno-initializer-overrides
+        )
+        set_source_files_properties(${GG_BUILT_SOURCES} PROPERTIES
+            COMPILE_FLAGS "-Wno-everything"
+        )
+    endif()
+    return()
+endif()
+
 ########### mkpat program ###############
 
 SET(mkpat_SRCS

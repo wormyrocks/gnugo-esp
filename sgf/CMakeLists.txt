@@ -2,6 +2,7 @@ INCLUDE_DIRECTORIES(${GNUGo_SOURCE_DIR}/utils)
 
 ########### sgfgen program ###############
 
+if(NOT EMSCRIPTEN)
 SET(sgfgen_SRCS
     sgfgen.c
     )
@@ -9,6 +10,7 @@ SET(sgfgen_SRCS
 ADD_EXECUTABLE(sgfgen ${sgfgen_SRCS})
 
 TARGET_LINK_LIBRARIES(sgfgen)
+endif()
 
 
 ########### sgf library ###############
