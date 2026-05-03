@@ -25,8 +25,13 @@ if(GNUGO_PREGENERATED_PATTERNS)
         ${CMAKE_CURRENT_SOURCE_DIR}/josekidb.c
         ${CMAKE_CURRENT_SOURCE_DIR}/patterns.c
         ${CMAKE_CURRENT_SOURCE_DIR}/eyes.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/mcpat.c
     )
+    # mcpat.c (~1.3MB) defines mc_pattern_databases used only by Monte
+    # Carlo code. When CONFIG_DISABLE_MONTE_CARLO is set the engine never
+    # references those symbols, so we can drop the file entirely.
+    if(NOT CONFIG_DISABLE_MONTE_CARLO)
+        list(APPEND GG_BUILT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/mcpat.c)
+    endif()
     SET(patterns_STAT_SRCS
         connections.c
         helpers.c
