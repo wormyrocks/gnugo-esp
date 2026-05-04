@@ -84,6 +84,8 @@
 
 #define MAX_TRACE_LENGTH  160
 
+#include <stdint.h>
+
 #define HUGE_MOVE_VALUE 10.0*MAX_BOARD*MAX_BOARD
 
 struct move_reason {
@@ -120,7 +122,7 @@ struct move_data {
   float max_territory;        /* Maximum territorial value. */
   float randomness_scaling;   /* Increase to randomize this move. */
 
-  int reason[MAX_REASONS]; /* List of reasons for a move. */
+  int16_t reason[MAX_REASONS]; /* List of reasons for a move (-1 = unused). */
   int move_safety;         /* Whether the move seems safe. */
   int worthwhile_threat;   /* Play this move as a pure threat. */
   float random_number;     /* Random number connected to this move. */

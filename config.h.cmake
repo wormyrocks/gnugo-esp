@@ -122,9 +122,6 @@
 #define GNUGO_STACK_SIZE CONFIG_GNUGO_STACK_SIZE
 #endif
 #include "esp_attr.h"
-#ifdef CONFIG_USE_ESP_RANDOM
-#include "esp_random.h"
-#endif
 #undef HAVE_TIMES
 #define _EMBEDDED_BSS EXT_RAM_BSS_ATTR
 #ifdef CONFIG_USE_TCM

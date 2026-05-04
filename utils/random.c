@@ -26,10 +26,6 @@
 
 #include "random.h"
 
-#ifdef CONFIG_USE_ESP_RANDOM
-#include "esp_random.h"
-#endif
-
 /* This is an implementation of the TGFSR (twisted generalized
  * feedback shift register) random number generator TT800, which was
  * published in:
@@ -90,10 +86,6 @@ iterate_tgfsr(void)
 static unsigned int
 next_rand(void)
 {
-  #ifdef CONFIG_USE_ESP_RANDOM
-  rand_initialized=1;
-  return (unsigned int)(esp_random());
-  #endif
   int y;
   if (!rand_initialized) {
     assert(rand_initialized); /* Abort. */
@@ -126,7 +118,6 @@ next_rand(void)
 void
 gg_srand(unsigned int seed)
 {
-  #ifndef CONFIG_USE_ESP_RANDOM
   int i;
   for (i = 0; i < N; i++) {
 #if BIG_UINT
@@ -137,7 +128,6 @@ gg_srand(unsigned int seed)
     seed += 88897;
   }
   k = N-1; /* Force an immediate iteration of the TGFSR. */
-  #endif
   rand_initialized = 1;
 }
 

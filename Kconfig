@@ -9,7 +9,4 @@ menu "GNU Go Configuration"
     config USE_TCM
         bool "Use ESP TCM for certain buffers"
         default n
-    config USE_ESP_RANDOM
-        bool "Use esp_random"
-        default y
 endmenu

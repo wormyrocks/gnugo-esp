@@ -63,6 +63,7 @@ typedef enum
     COMMAND_RESTART,
     COMMAND_FORCEQUIT,
     COMMAND_UNDO,
+    COMMAND_BENCHMARK,
 } go_command_t;
 
 // UI => Engine

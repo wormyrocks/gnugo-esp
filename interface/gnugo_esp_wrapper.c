@@ -13,6 +13,10 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#ifdef ESP_PLATFORM
+#include "esp_random.h"
+#endif
 
 static int grid_points = 9;
 
@@ -499,11 +503,25 @@ esp_gnugo_start(engine_context_t *ctx, bool *player_is_white_)
      * hash caches, and transformation data that cannot be reinitialized. */
     static int gnugo_initialized = 0;
     if (!gnugo_initialized) {
-        init_gnugo(init_params.memory_mb, init_params.random_seed);
+        unsigned int seed = init_params.random_seed;
+#ifdef ESP_PLATFORM
+        if (seed == 0)
+            seed = esp_random();
+#endif
+        init_gnugo(init_params.memory_mb, seed);
 #ifndef CONFIG_DISABLE_MONTE_CARLO
         choose_mc_patterns("montegnu_classic");
 #endif
+        showtime = 1;
+        showstatistics = 1;
         gnugo_initialized = 1;
+    } else {
+        unsigned int seed = init_params.random_seed;
+#ifdef ESP_PLATFORM
+        if (seed == 0)
+            seed = esp_random();
+#endif
+        set_random_seed(seed);
     }
 
     /* boardsize clears the board and primes gtp_boardsize for coord parsing */
@@ -568,6 +586,8 @@ process_move(engine_context_t *ctx, int move, int did_resign)
     esp_gnugo_update_board_state(ctx);
 }
 
+static esp_gnugo_state_t esp_gnugo_get_computer_move(engine_context_t *ctx);
+
 static int
 esp_gnugo_set_player_command(engine_context_t *ctx, engine_signal_t e)
 {
@@ -631,6 +651,51 @@ esp_gnugo_set_player_command(engine_context_t *ctx, engine_signal_t e)
         return ok;
     }
 
+    case COMMAND_BENCHMARK: {
+        /* pos encodes: low byte = num_moves, high byte = level+1 (0=keep) */
+        int num_moves = e.pos & 0xFF;
+        int req_level = (e.pos >> 8) & 0xFF;
+        if (num_moves == 0 || num_moves > 20) num_moves = 6;
+
+        /* Clear saved game so restart begins from empty board */
+        ctx->sgf_buf = NULL;
+        ctx->sgf_buf_len = 0;
+        ctx->init_params.infile = NULL;
+        bool player_is_white = (gameinfo->computer_player == BLACK);
+        int level = req_level > 0 ? req_level - 1 : wrapper_level;
+        esp_gnugo_restart(ctx, level, player_is_white);
+        /* Force level via GTP (restart may resume from SGF and skip level set) */
+        {
+            char lcmd[32];
+            snprintf(lcmd, sizeof(lcmd), "level %d\n", level);
+            char *lr = gtp_send(lcmd);
+            free(lr);
+            wrapper_level = level;
+        }
+        ctx->two_player = 0;
+        set_random_seed(1);
+
+        fprintf(stderr, "\n=== ENGINE BENCHMARK: %d moves, level %d, %dx%d ===\n",
+                num_moves, wrapper_level, grid_points, grid_points);
+        struct timeval tv_total_start, tv_total_end;
+        gettimeofday(&tv_total_start, NULL);
+        long total_nodes = 0;
+        int moves_played = 0;
+        for (int i = 0; i < num_moves && !game_is_over; i++) {
+            esp_gnugo_get_computer_move(ctx);
+            total_nodes += stats.nodes;
+            moves_played++;
+        }
+        gettimeofday(&tv_total_end, NULL);
+        int total_ms = (tv_total_end.tv_sec - tv_total_start.tv_sec) * 1000
+                     + (tv_total_end.tv_usec - tv_total_start.tv_usec) / 1000;
+        long avg_nps = total_ms > 0 ? (total_nodes * 1000) / total_ms : 0;
+        fprintf(stderr, "=== BENCHMARK DONE: %d moves, %dms total, %ld nodes, %ld nodes/sec avg ===\n\n",
+                moves_played, total_ms, total_nodes, avg_nps);
+        esp_gnugo_update_board_state(ctx);
+        return 1;
+    }
+
     case COMMAND_FORCEQUIT:
         return 1;
 
@@ -664,9 +729,19 @@ esp_gnugo_get_computer_move(engine_context_t *ctx)
     snprintf(cmd, sizeof(cmd), "genmove %s\n",
              (gameinfo->to_move == BLACK) ? "black" : "white");
 
+    struct timeval tv_start, tv_end;
+    gettimeofday(&tv_start, NULL);
+
     char *response = gtp_send(cmd);
     if (!response)
         return game_state.state;
+
+    gettimeofday(&tv_end, NULL);
+    int elapsed_ms = (tv_end.tv_sec - tv_start.tv_sec) * 1000
+                   + (tv_end.tv_usec - tv_start.tv_usec) / 1000;
+    int nps = elapsed_ms > 0 ? (stats.nodes * 1000) / elapsed_ms : 0;
+    fprintf(stderr, "[gnugo] genmove: %dms, %d nodes, %d nodes/sec (level %d, %dx%d)\n",
+            elapsed_ms, stats.nodes, nps, wrapper_level, grid_points, grid_points);
 
     /* Response: "= resign\n\n", "= PASS\n\n", or "= <vertex>\n\n" */
     int did_resign = (strncmp(response, "= resign", 8) == 0);

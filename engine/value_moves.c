@@ -3019,8 +3019,8 @@ estimate_strategical_value(int pos, int color, float our_score,
 static int
 compare_move_reasons(const void *p1, const void *p2)
 {
-  const int mr1 = *(const int *) p1;
-  const int mr2 = *(const int *) p2;
+  const int mr1 = *(const int16_t *) p1;
+  const int mr2 = *(const int16_t *) p2;
 
   if (move_reasons[mr1].type != move_reasons[mr2].type)
     return move_reasons[mr2].type - move_reasons[mr1].type;

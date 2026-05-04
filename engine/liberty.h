@@ -28,6 +28,7 @@
 #include "hash.h"
 #include "gnugo.h"
 #include "winsocket.h"
+#include <stdint.h>
 
 /* ================================================================ */
 /*                           public variables                       */
@@ -803,11 +804,11 @@ struct eyevalue {
 
 struct half_eye_data {
   float value;          /* Topological eye value. */
-  unsigned char type;   /* HALF_EYE or FALSE_EYE; */
-  int num_attacks;      /* number of attacking points */
   int attack_point[4];  /* the moves to attack a topological halfeye */
-  int num_defenses;     /* number of defending points */
   int defense_point[4]; /* the moves to defend a topological halfeye */
+  unsigned char type;   /* HALF_EYE or FALSE_EYE; */
+  uint8_t num_attacks;  /* number of attacking points */
+  uint8_t num_defenses; /* number of defending points */
 };
 
 /* array of half-eye data */
@@ -820,40 +821,34 @@ extern struct half_eye_data half_eye[BOARDMAX];
 #define MAX_TACTICAL_POINTS 10
 
 struct worm_data {
-  int color;         /* its color */
-  int size;          /* its cardinality */
   float effective_size; /* stones and surrounding spaces */
   int origin;        /* the origin of the string. Two vertices are in */
                      /* the same worm iff they have same origin. */
-  int liberties;     /* number of liberties */
-  int liberties2;    /* number of second order liberties */
-  int liberties3;    /* third order liberties (empty vertices at distance 3) */
-  int liberties4;    /* fourth order liberties */
   int lunch;         /* if lunch != 0 then lunch points to a boundary */
                      /* worm which can be captured easily. */
-  int cutstone;      /* 1=potential cutting stone; 2=cutting stone */
-  int cutstone2;     /* Number of potential cuts involving the worm. */
-  int genus;         /* number of connected components of the complement, less one */
-  int inessential;   /* 1=inessential worm */
-  int invincible;    /* 1=strongly unconditionally non-capturable */
-  enum dragon_status unconditional_status; /* ALIVE, DEAD, WHITE_TERRITORY,
-					      BLACK_TERRITORY, UNKNOWN */
 
-  /* The following arrays keeps track of up to MAX_TACTICAL_POINTS
-   * different attack, defense, attack threat, and defense threat
-   * points with corresponding result codes. (0 = loss, 1 = bad ko, 2
-   * = good ko, 3 = win). The arrays are guaranteed to be sorted with
-   * respect to the codes so that the first element contains the best
-   * result.
-   */
   int attack_points[MAX_TACTICAL_POINTS];
   int attack_codes[MAX_TACTICAL_POINTS];
   int defense_points[MAX_TACTICAL_POINTS];
   int defense_codes[MAX_TACTICAL_POINTS];
   int attack_threat_points[MAX_TACTICAL_POINTS];
-  int attack_threat_codes[MAX_TACTICAL_POINTS]; 
+  int attack_threat_codes[MAX_TACTICAL_POINTS];
   int defense_threat_points[MAX_TACTICAL_POINTS];
   int defense_threat_codes[MAX_TACTICAL_POINTS];
+
+  uint16_t size;     /* its cardinality */
+  uint8_t color;     /* its color */
+  uint8_t liberties; /* number of liberties */
+  uint8_t liberties2; /* number of second order liberties */
+  uint8_t liberties3; /* third order liberties (empty vertices at distance 3) */
+  uint8_t liberties4; /* fourth order liberties */
+  uint8_t cutstone;  /* 1=potential cutting stone; 2=cutting stone */
+  uint8_t cutstone2; /* Number of potential cuts involving the worm. */
+  uint8_t genus;     /* number of connected components of the complement, less one */
+  uint8_t inessential; /* 1=inessential worm */
+  uint8_t invincible;  /* 1=strongly unconditionally non-capturable */
+  uint8_t unconditional_status; /* ALIVE, DEAD, WHITE_TERRITORY,
+				   BLACK_TERRITORY, UNKNOWN */
 };
 
 extern struct worm_data worm[BOARDMAX];
@@ -879,14 +874,14 @@ extern int surround_pointer;
  */
 
 struct dragon_data {
-  int color;    /* its color                                                 */
   int id;       /* the index into the dragon2 array                          */
   int origin;   /* the origin of the dragon. Two vertices are in the same    */
                 /* dragon iff they have same origin.                         */
-  int size;     /* size of the dragon                                        */
   float effective_size; /* stones and surrounding spaces                     */
-  enum dragon_status crude_status; /* (ALIVE, DEAD, UNKNOWN, CRITICAL)       */
-  enum dragon_status status;       /* best trusted status                    */
+  uint16_t size;     /* size of the dragon                                   */
+  uint8_t color;     /* its color                                            */
+  uint8_t crude_status; /* (ALIVE, DEAD, UNKNOWN, CRITICAL)                  */
+  uint8_t status;       /* best trusted status                               */
 };
 
 extern struct dragon_data dragon[BOARDMAX];
@@ -986,11 +981,11 @@ struct aftermath_data {
 #define MAX_EYE_ATTACKS 3
 
 struct eye_data {
-  int color;             /* BLACK, WHITE, or GRAY                     */
-  int esize;             /* size of the eyespace                      */
-  int msize;             /* number of marginal vertices               */
   int origin;            /* The origin                                */
   struct eyevalue value; /* Number of eyes.                           */
+  uint16_t esize;        /* size of the eyespace                      */
+  uint8_t color;         /* BLACK, WHITE, or GRAY                     */
+  uint8_t msize;         /* number of marginal vertices               */
 
   /* The above fields are constant on the whole eyespace.             */
   /* ---------------------------------------------------------------- */
