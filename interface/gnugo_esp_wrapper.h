@@ -123,4 +123,12 @@ typedef struct {
 
 void go_engine_thread_main(engine_context_t *ctx);
 
+/* Enter a blocking GTP REPL on the given streams. Used by the serial console's
+ * `gtp` command. Returns when the GTP client sends `quit`.
+ *
+ * Concurrency: the engine thread (go_engine_thread_main) shares engine globals
+ * (board, hash tables, move history). Callers must guarantee the engine thread
+ * is paused/stopped before invoking, or accept undefined behavior. */
+void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output);
+
 #endif

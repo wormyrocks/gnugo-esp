@@ -861,3 +861,8 @@ go_engine_thread_main(engine_context_t *ctx)
     ctx->engine_status = ENGINE_STATUS_STOPPED;
     printf("[engine] Thread exiting. SGF buffer: %zu bytes.\n", sgf_outbuf_len);
 }
+
+void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output)
+{
+    play_gtp(gtp_input, gtp_output, NULL, 0);
+}
