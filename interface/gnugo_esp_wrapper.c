@@ -716,6 +716,14 @@ esp_gnugo_restart(engine_context_t *ctx, int requested_level, bool player_is_whi
     sgfAddProperty(sgftree.root, "PW",
                    player_is_white ? YOUR_NAME : CPU_NAME);
     gameinfo_clear(gameinfo);
+    /* Drop any cached SGF (in-memory or file) so init_board_state takes the
+     * fresh-start branch instead of resuming the just-ended game. */
+    if (ctx) {
+	    ctx->sgf_buf = NULL;
+	    ctx->sgf_buf_len = 0;
+	    ctx->init_params.infile = NULL;
+    }
+
     esp_gnugo_init_board_state(ctx, player_is_white,
                                restart_handicap, requested_level);
 }
