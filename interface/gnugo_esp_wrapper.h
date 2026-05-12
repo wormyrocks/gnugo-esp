@@ -123,6 +123,13 @@ typedef struct {
 
 void go_engine_thread_main(engine_context_t *ctx);
 
+/* Cooperative abort.  Sets gnugo_abort_requested and snapshots the engine's
+ * node count / wall-clock for latency instrumentation.  Safe to call from
+ * any thread; the engine longjmps out of its current genmove at the next
+ * poll site (one check per 1024 reading nodes).  No-op if no genmove is in
+ * flight (gnugo_abort_armed == 0). */
+void gnugo_request_abort(void);
+
 /* Enter a blocking GTP REPL on the given streams. Used by the serial console's
  * `gtp` command. Returns when the GTP client sends `quit`.
  *

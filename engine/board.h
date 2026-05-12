@@ -416,6 +416,25 @@ struct stats_data {
 extern struct stats_data stats;
 
 
+/* ------------------------------------------------------------------ *
+ *  Cooperative abort (Focus integration)                              *
+ * ------------------------------------------------------------------ *
+ * gnugo_abort_requested is set by another thread/task to ask the
+ * engine to abandon the in-flight genmove.  The engine polls the flag
+ * at each stats.nodes increment (board.c) and, if armed, longjmps to
+ * gnugo_abort_jmpbuf.  The wrapper installs that jmpbuf around its
+ * genmove call so control returns there without committing a move.
+ *
+ * Symbols are always defined (boardlib.c) so the standalone gnugo
+ * binary links without any wrapper.  When gnugo_abort_armed is 0 the
+ * poll degenerates to a single global-flag load and never longjmps. */
+#include <signal.h>
+#include <setjmp.h>
+extern volatile sig_atomic_t gnugo_abort_requested;
+extern volatile int          gnugo_abort_armed;
+extern jmp_buf               gnugo_abort_jmpbuf;
+
+
 /* printutils.c */
 int gprintf(const char *fmt, ...);
 void vgprintf(FILE *outputfile, const char *fmt, va_list ap);

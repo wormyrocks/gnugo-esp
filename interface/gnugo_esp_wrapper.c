@@ -14,9 +14,36 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <setjmp.h>
 #ifdef ESP_PLATFORM
 #include "esp_random.h"
 #endif
+
+/* Cooperative-abort instrumentation: timestamp + node-count at flag set so
+ * the catch site can log latency and "wasted work". */
+static volatile uint64_t gnugo_abort_set_us       = 0;
+static volatile int      gnugo_abort_nodes_at_set = 0;
+
+static uint64_t
+abort_time_us_now(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000ULL + (uint64_t)tv.tv_usec;
+}
+
+void
+gnugo_request_abort(void)
+{
+    if (gnugo_abort_requested)
+        return;
+    gnugo_abort_set_us       = abort_time_us_now();
+    gnugo_abort_nodes_at_set = stats.nodes;
+    fprintf(stderr,
+            "[abort] requested  armed=%d node=%d\n",
+            gnugo_abort_armed, stats.nodes);
+    gnugo_abort_requested = 1;
+}
 
 static int grid_points = 9;
 
@@ -733,6 +760,41 @@ esp_gnugo_get_computer_move(engine_context_t *ctx)
 {
     init_sgf(gameinfo);
 
+    /* Install cooperative-abort landing pad.  If the engine longjmps here
+     * mid-reading we never reach process_move, so no move is committed; the
+     * board / move history are exactly as they were when genmove started. */
+    if (setjmp(gnugo_abort_jmpbuf) != 0) {
+        gnugo_abort_armed = 0;
+        /* Unwind GNU Go's speculative-move stack: every nested trymove() that
+         * hadn't reached its matching popgo() when we longjmp'd is still on
+         * the stack.  Without this, the next GTP command fails with
+         * "? genmove cannot be called when stackp > 0".  popgo() restores
+         * board[], hash, ko status, and captured-stone counts per frame. */
+        int frames_popped = stackp;
+        while (stackp > 0)
+            popgo();
+        uint64_t now_us       = abort_time_us_now();
+        uint64_t latency_us   = now_us - gnugo_abort_set_us;
+        int      nodes_burned = stats.nodes - gnugo_abort_nodes_at_set;
+        fprintf(stderr,
+                "[abort] caught     latency_us=%llu nodes_since_set=%d total_nodes=%d frames_popped=%d\n",
+                (unsigned long long)latency_us, nodes_burned, stats.nodes,
+                frames_popped);
+        gnugo_abort_requested = 0;
+        /* Leave the in-flight gtp_send's response buffer leaked — one
+         * memstream + one fmemopen per abort.  Acceptable: aborts are rare
+         * and the engine task is typically about to exit anyway. */
+        game_state.last_event = ESP_GNUGO_EVENT_NONE;
+        game_state.state      = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
+        esp_gnugo_update_board_state(ctx);
+        return game_state.state;
+    }
+
+    /* Clear any stale flag from before this genmove (e.g. abort arrived
+     * between the previous catch site disarm and now). */
+    gnugo_abort_requested = 0;
+    gnugo_abort_armed     = 1;
+
     char cmd[32];
     snprintf(cmd, sizeof(cmd), "genmove %s\n",
              (gameinfo->to_move == BLACK) ? "black" : "white");
@@ -741,6 +803,9 @@ esp_gnugo_get_computer_move(engine_context_t *ctx)
     gettimeofday(&tv_start, NULL);
 
     char *response = gtp_send(cmd);
+
+    gnugo_abort_armed = 0;
+
     if (!response)
         return game_state.state;
 

@@ -61,6 +61,13 @@ int position_number;    /* position number */
 /* Some statistics gathered partly in board.c and hash.c */
 struct stats_data stats;
 
+/* Cooperative abort — declared in board.h.
+ * gnugo_abort_armed gates the longjmp: the wrapper sets it to 1 around its
+ * genmove call so an inadvertent longjmp from outside that scope can't fire. */
+volatile sig_atomic_t gnugo_abort_requested = 0;
+volatile int          gnugo_abort_armed     = 0;
+jmp_buf               gnugo_abort_jmpbuf;
+
 /* Variation tracking in SGF trees: */
 int count_variations  = 0;
 SGFTree *sgf_dumptree = NULL;

@@ -548,6 +548,12 @@ trymove(int pos, int color, const char *message, int str)
   if (count_variations)
     count_variations++;
   stats.nodes++;
+  /* Cooperative abort: every 1024 reading nodes, check whether the wrapper
+   * has asked us to bail.  Branch is well-predicted (flag is 0 in the common
+   * case) so the cost is one masked load + compare. */
+  if (gnugo_abort_armed && (stats.nodes & 0x3FF) == 0
+      && gnugo_abort_requested)
+    longjmp(gnugo_abort_jmpbuf, 1);
 
   return 1;
 }
@@ -603,6 +609,12 @@ tryko(int pos, int color, const char *message)
   if (count_variations)
     count_variations++;
   stats.nodes++;
+  /* Cooperative abort: every 1024 reading nodes, check whether the wrapper
+   * has asked us to bail.  Branch is well-predicted (flag is 0 in the common
+   * case) so the cost is one masked load + compare. */
+  if (gnugo_abort_armed && (stats.nodes & 0x3FF) == 0
+      && gnugo_abort_requested)
+    longjmp(gnugo_abort_jmpbuf, 1);
 
   return 1;
 }
