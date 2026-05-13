@@ -79,7 +79,20 @@ static size_t sgf_outbuf_len = 0;
 /*
  * Core GTP dispatch: send one command (must end with '\n'), optionally
  * echoing to stdout.  Returns response in a malloc'd buffer; caller frees.
+ *
+ * The two FILE handles and the growing output buffer are tracked via
+ * file-static "pending" pointers so the cooperative-abort catch site can
+ * see what's currently allocated.  We deliberately DO NOT fclose them on
+ * abort: the longjmp may escape while open_memstream is mid-realloc of
+ * its growing output buffer, and fclose's own realloc-to-final-size then
+ * walks tlsf metadata that's still in an intermediate state.  Catch site
+ * just NULLs the pointers — leaks ~80 bytes per abort, absorbed by the
+ * idle 52 KB internal-RAM headroom.
  */
+static FILE  *gtp_pending_in     = NULL;
+static FILE  *gtp_pending_out    = NULL;
+static char  *gtp_pending_outbuf = NULL;
+
 static char *
 gtp_send_internal(const char *cmd, bool echo)
 {
@@ -87,16 +100,17 @@ gtp_send_internal(const char *cmd, bool echo)
         printf(">> %s", cmd);
         fflush(stdout);
     }
-    FILE *in = fmemopen((void *)cmd, strlen(cmd), "r");
-    if (!in)
+    gtp_pending_in = fmemopen((void *)cmd, strlen(cmd), "r");
+    if (!gtp_pending_in)
         return NULL;
-    char   *out_buf = NULL;
     size_t  out_len = 0;
-    FILE   *out = open_memstream(&out_buf, &out_len);
-    assert(out != NULL);
-    gtp_run_command(in, out);
-    fclose(in);
-    fclose(out);
+    gtp_pending_out = open_memstream(&gtp_pending_outbuf, &out_len);
+    assert(gtp_pending_out != NULL);
+    gtp_run_command(gtp_pending_in, gtp_pending_out);
+    fclose(gtp_pending_in);  gtp_pending_in  = NULL;
+    fclose(gtp_pending_out); gtp_pending_out = NULL;
+    /* Hand ownership of the output buffer to the caller. */
+    char *out_buf = gtp_pending_outbuf; gtp_pending_outbuf = NULL;
     if (echo) {
         printf("<< %s", out_buf ? out_buf : "(null)\n");
         fflush(stdout);
@@ -781,9 +795,21 @@ esp_gnugo_get_computer_move(engine_context_t *ctx)
                 (unsigned long long)latency_us, nodes_burned, stats.nodes,
                 frames_popped);
         gnugo_abort_requested = 0;
-        /* Leave the in-flight gtp_send's response buffer leaked — one
-         * memstream + one fmemopen per abort.  Acceptable: aborts are rare
-         * and the engine task is typically about to exit anyway. */
+        /* DON'T call fclose on the in-flight gtp_send_internal FILE handles:
+         * the longjmp may have escaped while open_memstream was mid-realloc
+         * of its growing buffer.  fclose's own realloc-to-final-size walks
+         * tlsf metadata that's still in an intermediate state and ends up
+         * passing a free-list pointer back to the allocator as a size,
+         * which then panics with "Heap alloc failed, size 1208773651".
+         *
+         * Just NULL the trackers and accept the leak (~80 byte FILE struct
+         * + the growing output buffer per abort).  With ~52 KB internal
+         * RAM free at idle this absorbs thousands of aborts before
+         * pressure; the engine task usually exits soon after a real abort
+         * anyway. */
+        gtp_pending_in     = NULL;
+        gtp_pending_out    = NULL;
+        gtp_pending_outbuf = NULL;
         game_state.last_event = ESP_GNUGO_EVENT_NONE;
         game_state.state      = ESP_GNUGO_STATE_WAITING_FOR_PLAYER;
         esp_gnugo_update_board_state(ctx);
