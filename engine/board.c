@@ -39,6 +39,11 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#if ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#endif
+
 
 /* This can be used for internal checks w/in board.c that should
  * typically not be necessary (for speed).
@@ -548,12 +553,18 @@ trymove(int pos, int color, const char *message, int str)
   if (count_variations)
     count_variations++;
   stats.nodes++;
-  /* Cooperative abort: every 1024 reading nodes, check whether the wrapper
-   * has asked us to bail.  Branch is well-predicted (flag is 0 in the common
-   * case) so the cost is one masked load + compare. */
-  if (gnugo_abort_armed && (stats.nodes & 0x3FF) == 0
-      && gnugo_abort_requested)
-    longjmp(gnugo_abort_jmpbuf, 1);
+  if ((stats.nodes & 0x3FF) == 0) {
+    /* Cooperative abort: every 1024 reading nodes, check whether the wrapper
+     * has asked us to bail. */
+    if (gnugo_abort_armed && gnugo_abort_requested)
+      longjmp(gnugo_abort_jmpbuf, 1);
+#if ESP_PLATFORM
+    /* Yield every 32768 nodes (~0.5-1s at 50k nps) so the TWDT on core 1
+     * doesn't fire during long genmoves. */
+    if ((stats.nodes & 0x7FFF) == 0)
+      vTaskDelay(1);
+#endif
+  }
 
   return 1;
 }
@@ -609,12 +620,14 @@ tryko(int pos, int color, const char *message)
   if (count_variations)
     count_variations++;
   stats.nodes++;
-  /* Cooperative abort: every 1024 reading nodes, check whether the wrapper
-   * has asked us to bail.  Branch is well-predicted (flag is 0 in the common
-   * case) so the cost is one masked load + compare. */
-  if (gnugo_abort_armed && (stats.nodes & 0x3FF) == 0
-      && gnugo_abort_requested)
-    longjmp(gnugo_abort_jmpbuf, 1);
+  if ((stats.nodes & 0x3FF) == 0) {
+    if (gnugo_abort_armed && gnugo_abort_requested)
+      longjmp(gnugo_abort_jmpbuf, 1);
+#if ESP_PLATFORM
+    if ((stats.nodes & 0x7FFF) == 0)
+      vTaskDelay(1);
+#endif
+  }
 
   return 1;
 }
