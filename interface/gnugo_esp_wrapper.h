@@ -64,6 +64,7 @@ typedef enum
     COMMAND_FORCEQUIT,
     COMMAND_UNDO,
     COMMAND_BENCHMARK,
+    COMMAND_GTP,
 } go_command_t;
 
 // UI => Engine
@@ -137,5 +138,18 @@ void gnugo_request_abort(void);
  * (board, hash tables, move history). Callers must guarantee the engine thread
  * is paused/stopped before invoking, or accept undefined behavior. */
 void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output);
+
+/* GTP-on-engine-thread helpers (COMMAND_GTP). Rather than running the GTP REPL
+ * in the small console task, the `gtp` console command signals the engine
+ * thread to run esp_gnugo_play_gtp() on its 2MB PSRAM stack, which also removes
+ * the engine-globals race. The console task arms then joins, parking it (and
+ * keeping it off stdin) for the whole session. */
+void esp_gnugo_gtp_arm(void);   /* (re)create + drain the done semaphore */
+void esp_gnugo_gtp_join(void);  /* block until the engine's GTP session ends */
+
+/* Push current board state to the UI snapshot during a console GTP session.
+ * No-op outside a COMMAND_GTP session (g_gtp_ctx == NULL). Called per command
+ * from gtp_main_loop so the on-device board tracks each play/genmove. */
+void esp_gnugo_gtp_refresh_ui(void);
 
 #endif

@@ -629,6 +629,17 @@ process_move(engine_context_t *ctx, int move, int did_resign)
 
 static esp_gnugo_state_t esp_gnugo_get_computer_move(engine_context_t *ctx);
 
+#if defined(ESP_PLATFORM)
+#include <fcntl.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+static SemaphoreHandle_t s_gtp_done = NULL;
+#endif
+
+/* Engine context active during a console-driven GTP session (COMMAND_GTP), so
+ * GTP command handlers can push board updates to the UI. NULL otherwise. */
+static engine_context_t *g_gtp_ctx = NULL;
+
 static int
 esp_gnugo_set_player_command(engine_context_t *ctx, engine_signal_t e)
 {
@@ -734,6 +745,35 @@ esp_gnugo_set_player_command(engine_context_t *ctx, engine_signal_t e)
         fprintf(stderr, "=== BENCHMARK DONE: %d moves, %dms total, %ld nodes, %ld nodes/sec avg ===\n\n",
                 moves_played, total_ms, total_nodes, avg_nps);
         esp_gnugo_update_board_state(ctx);
+        return 1;
+    }
+
+    case COMMAND_GTP: {
+        /* Run the GTP REPL here on the engine thread's large PSRAM stack.
+         * Because this IS the engine thread, nothing else touches engine
+         * globals for the duration, so the play_gtp concurrency caveat no
+         * longer applies. */
+#if defined(ESP_PLATFORM)
+        /* The console REPL may leave stdin non-blocking; GTP needs blocking
+         * reads or gtp_main_loop's first fgets hits EOF and exits at once. */
+        int fd = fileno(stdin);
+        int saved_fl = fcntl(fd, F_GETFL, 0);
+        if (saved_fl != -1)
+            fcntl(fd, F_SETFL, saved_fl & ~O_NONBLOCK);
+#endif
+        g_gtp_ctx = ctx;
+        esp_gnugo_play_gtp(stdin, stdout);
+        g_gtp_ctx = NULL;
+#if defined(ESP_PLATFORM)
+        if (saved_fl != -1)
+            fcntl(fd, F_SETFL, saved_fl);  /* restore for the console REPL */
+#endif
+        esp_gnugo_update_board_state(ctx);  /* final state after `quit` */
+        ctx->state_ready = 1;
+#if defined(ESP_PLATFORM)
+        if (s_gtp_done)
+            xSemaphoreGive(s_gtp_done);  /* release the parked console task */
+#endif
         return 1;
     }
 
@@ -964,4 +1004,30 @@ go_engine_thread_main(engine_context_t *ctx)
 void esp_gnugo_play_gtp(FILE *gtp_input, FILE *gtp_output)
 {
     play_gtp(gtp_input, gtp_output, NULL, 0);
+}
+
+void esp_gnugo_gtp_refresh_ui(void)
+{
+    if (g_gtp_ctx) {
+        esp_gnugo_update_board_state(g_gtp_ctx);
+        g_gtp_ctx->state_ready = 1;
+    }
+}
+
+void esp_gnugo_gtp_arm(void)
+{
+#if defined(ESP_PLATFORM)
+    if (!s_gtp_done)
+        s_gtp_done = xSemaphoreCreateBinary();
+    if (s_gtp_done)
+        xSemaphoreTake(s_gtp_done, 0);  /* drain any stale signal */
+#endif
+}
+
+void esp_gnugo_gtp_join(void)
+{
+#if defined(ESP_PLATFORM)
+    if (s_gtp_done)
+        xSemaphoreTake(s_gtp_done, portMAX_DELAY);
+#endif
 }
