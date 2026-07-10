@@ -72,17 +72,42 @@ ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 # times.h is bad in picolibc
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake
                ${BUILD_DIR}/config.h)
-# # Run the pattern generators if not found
-add_custom_command(OUTPUT patterns/patterns.c
+# Run the pattern generators only when their inputs change.
+#
+# The generated .c files live in the source tree (they are checked in), so
+# the custom command tracks a stamp file in the build dir instead of the
+# copied outputs, and copy_if_different keeps the checked-in files'
+# timestamps stable when regeneration produces identical content. Without
+# this, every build re-ran the generators and recompiled all pattern
+# databases (~80% of an incremental build).
+file(GLOB PATTERN_GEN_INPUTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/*.db
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/*.dbz
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/*.dtr
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/*.sgf
+)
+list(APPEND PATTERN_GEN_INPUTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/mkpat.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/mkeyes.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/mkmcpat.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/joseki.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/uncompress_fuseki.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/transform.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/patterns/dfa.c
+)
+set(PATTERN_GEN_STAMP ${BUILD_DIR}/patterns_generated.stamp)
+add_custom_command(OUTPUT ${PATTERN_GEN_STAMP}
     # Call CMake again directly - ugly but necessary because we need to
-    # build the pattern generators for target architecture
+    # build the pattern generators for the host architecture
     WORKING_DIRECTORY ${BUILD_DIR}
     COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} -B .build_patterns -DDISABLE_MONTE_CARLO=${CONFIG_DISABLE_MONTE_CARLO} -DHAVE_CONFIG_H=1 -S ${COMPONENT_DIR} -Wno-dev
     COMMAND ${CMAKE_COMMAND} -E env "PATH=/usr/bin:/usr/local/bin:/bin" ${CMAKE_COMMAND} --build .build_patterns -t patterns -j
-    COMMAND ${CMAKE_COMMAND} -E copy .build_patterns/patterns/*.c ${CMAKE_CURRENT_SOURCE_DIR}/patterns
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different .build_patterns/patterns/*.c ${CMAKE_CURRENT_SOURCE_DIR}/patterns
+    COMMAND ${CMAKE_COMMAND} -E touch ${PATTERN_GEN_STAMP}
+    DEPENDS ${PATTERN_GEN_INPUTS}
     COMMENT "Generated pattern database."
 )
-add_custom_target(gen_patterns DEPENDS patterns/patterns.c)
+add_custom_target(gen_patterns DEPENDS ${PATTERN_GEN_STAMP})
 add_dependencies(${COMPONENT_LIB} gen_patterns)
 idf_build_set_property(MINIMAL_BUILD ON)
 ELSE()

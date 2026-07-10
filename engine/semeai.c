@@ -28,6 +28,9 @@
 
 #include "liberty.h"
 
+/* math.h (pulled in transitively) also defines INFINITY; this file wants
+ * its own integer sentinel. */
+#undef INFINITY
 #define INFINITY 1000
 
 static void find_moves_to_make_seki(void);
