@@ -1,0 +1,14 @@
+# Flash-layout stabilization for fast differential reflashing: pull GNU
+# Go's code and pattern databases (the largest, least-often-changing part
+# of the app image) out of the flash_text/flash_rodata catch-all rules so
+# they land at the end of each region, with 64KB of pre-alignment slack
+# that absorbs size changes in the frequently-edited code placed before
+# them. Small UI changes then rewrite only the UI's own flash sectors
+# instead of shifting the whole 4.4MB image, which is what makes
+# differential flashing (esptool write-flash --diff-with) effective.
+[mapping:gnugo_esp_stable_layout]
+archive: libgnugo-esp.a
+entries:
+    * (default);
+        text -> flash_text ALIGN(65536, pre),
+        rodata -> flash_rodata ALIGN(65536, pre)

@@ -26,7 +26,9 @@ idf_component_register(
     "patterns/compress_fuseki.c"
     "patterns/uncompress_fuseki.c"
     "patterns/mkmcpat.c"
-) 
+    LDFRAGMENTS
+    "linker.lf"
+)
 ENDIF()
 
 INCLUDE(CheckIncludeFiles)
@@ -55,6 +57,13 @@ CHECK_FUNCTION_EXISTS(g_vsnprintf HAVE_G_VSNPRINTF)
 IF (ESP_PLATFORM)
 SET(SIZEOF_LONG 4)
 component_compile_options(
+    # Keep string literals in this component's own .rodata instead of the
+    # linker-merged .rodata.str1.* pool. The merged pool lives in the
+    # frequently-shifting part of .flash.rodata, and the pattern databases
+    # are full of pointers to their name strings - merging would dirty
+    # thousands of pattern-table flash sectors on every unrelated UI
+    # change, defeating differential flashing (see linker.lf).
+    -fno-merge-constants
     -Wno-misleading-indentation
     -Wno-stringop-overflow
     -Wno-overflow
