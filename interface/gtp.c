@@ -76,6 +76,12 @@ static int current_id;
 FILE *gtp_output_file = NULL;
 
 
+#if ESP_PLATFORM
+/* Defined in gnugo_esp_wrapper.c: pushes board state to the device UI during a
+ * console-driven GTP session. No-op outside such a session. */
+extern void esp_gnugo_gtp_refresh_ui(void);
+#endif
+
 /* Read filehandle gtp_input linewise and interpret as GTP commands. */
 void
 gtp_main_loop(struct gtp_command commands[],
@@ -145,6 +151,10 @@ gtp_main_loop(struct gtp_command commands[],
     }
     if (commands[i].name == NULL)
       gtp_failure("unknown command");
+#if ESP_PLATFORM
+    else
+      esp_gnugo_gtp_refresh_ui(); /* mirror board to the device UI per command */
+#endif
 
     if (status == GTP_FATAL)
       gtp_panic();
