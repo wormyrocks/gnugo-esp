@@ -32,6 +32,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <assert.h>
+#include <setjmp.h>
 
 
 #if TIME_WITH_SYS_TIME
@@ -908,11 +909,23 @@ static int lookahead;
 /* ---------------------------------------------------------------- */
 
 
+/* Escape hatch for parse errors. On the device, exit() would panic and
+ * reboot straight back into loading the same corrupt SGF — an
+ * unrecoverable boot loop. Reader entry points arm this jump buffer so a
+ * parse error unwinds to them and they return NULL, letting the caller
+ * fall back to a fresh game. */
+static jmp_buf parse_error_jmp;
+static int parse_error_jmp_armed = 0;
+
 static void
 parse_error(const char *msg, int arg)
 {
   fprintf(stderr, msg, arg);
   fprintf(stderr, "\n");
+  if (parse_error_jmp_armed) {
+    sgferr = "syntax error";
+    longjmp(parse_error_jmp, 1);
+  }
   exit(EXIT_FAILURE);
 }
 
@@ -1138,7 +1151,7 @@ gametreefuseki(SGFNode **p, SGFNode *parent, int mode,
 SGFNode *
 readsgffilefuseki(const char *filename, int moves_per_game)
 {
-  SGFNode *root;
+  SGFNode *root = NULL;
   int tmpi = 0;
 
   if (strcmp(filename, "-") == 0)
@@ -1149,9 +1162,13 @@ readsgffilefuseki(const char *filename, int moves_per_game)
   if (!sgffile)
     return NULL;
 
-
-  nexttoken();
-  gametreefuseki(&root, NULL, LAX_SGF, moves_per_game, 0);
+  sgferr = NULL;
+  parse_error_jmp_armed = 1;
+  if (setjmp(parse_error_jmp) == 0) {
+    nexttoken();
+    gametreefuseki(&root, NULL, LAX_SGF, moves_per_game, 0);
+  }
+  parse_error_jmp_armed = 0;
 
   fclose(sgffile);
 
@@ -1194,7 +1211,7 @@ readsgffilefuseki(const char *filename, int moves_per_game)
 SGFNode *
 readsgffile(const char *filename)
 {
-  SGFNode *root;
+  SGFNode *root = NULL;
   int tmpi = 0;
 
   if (strcmp(filename, "-") == 0)
@@ -1205,9 +1222,13 @@ readsgffile(const char *filename)
   if (!sgffile)
     return NULL;
 
-
-  nexttoken();
-  gametree(&root, NULL, LAX_SGF);
+  sgferr = NULL;
+  parse_error_jmp_armed = 1;
+  if (setjmp(parse_error_jmp) == 0) {
+    nexttoken();
+    gametree(&root, NULL, LAX_SGF);
+  }
+  parse_error_jmp_armed = 0;
 
   if (sgffile != stdin)
     fclose(sgffile);
@@ -1247,15 +1268,20 @@ readsgffile(const char *filename)
 SGFNode *
 readsgfbuf(const char *buf, size_t len)
 {
-  SGFNode *root;
+  SGFNode *root = NULL;
   int tmpi = 0;
 
   sgffile = fmemopen((void *)buf, len, "r");
   if (!sgffile)
     return NULL;
 
-  nexttoken();
-  gametree(&root, NULL, LAX_SGF);
+  sgferr = NULL;
+  parse_error_jmp_armed = 1;
+  if (setjmp(parse_error_jmp) == 0) {
+    nexttoken();
+    gametree(&root, NULL, LAX_SGF);
+  }
+  parse_error_jmp_armed = 0;
 
   fclose(sgffile);
 

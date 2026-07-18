@@ -67,6 +67,7 @@ static int  prev_move_color = 0;
 /* Local mirrors of GTP-controlled settings (avoid reading gnugo globals). */
 static float wrapper_komi  = 6.5f;
 static int   wrapper_level = 0;
+static int   restart_handicap = 0;
 
 /* memstream for in-memory SGF output */
 static char  *sgf_outptr    = NULL;
@@ -419,20 +420,68 @@ load_game_from_sgftree(bool *player_is_white, engine_context_t *ctx)
     if (loaded_size > 0)
         grid_points = loaded_size;
 
+    /* Restore engine settings that live outside the move stream. The
+     * engine level is GTP state, not SGF state — without this, every
+     * resumed game silently played at the boot default instead of the
+     * level it was saved at, and a post-resume Rematch inherited
+     * level/komi/handicap of 0. XL is a wrapper-custom property injected
+     * by the UI on save (like XC/XZ/XV); older saves lack it, so fall
+     * back to the level recorded in the GN header string. */
+    char *val;
+    int loaded_level = -1;
+    if (sgfGetCharProperty(sgftree.root, "XL", &val))
+        loaded_level = atoi(val);
+    else if (sgfGetCharProperty(sgftree.root, "GN", &val)) {
+        char *lp = strstr(val, "level ");
+        if (lp)
+            loaded_level = atoi(lp + 6);
+    }
+    if (loaded_level >= 0) {
+        char cmd[32];
+        snprintf(cmd, sizeof(cmd), "level %d\n", loaded_level);
+        char *r = gtp_send(cmd);
+        free(r);
+        wrapper_level = loaded_level;
+    }
+
+    /* Re-seed the restart baselines so Rematch after resume keeps the
+     * saved game's komi and handicap. */
+    if (sgfGetCharProperty(sgftree.root, "KM", &val))
+        wrapper_komi = (float) atof(val);
+    restart_handicap = gameinfo->handicap;
+
+    /* Rebuild pass/game-over bookkeeping from trailing pass moves in the
+     * record. loadsgf replays moves through the engine, but the wrapper's
+     * own `passes` counter only advances during live play — without this,
+     * a finished (double-pass) game resumed as still-in-progress. */
+    int trailing_passes = 0;
+    for (SGFNode *n = sgftree.root; n; n = n->child) {
+        if (!is_move_node(n))
+            continue;
+        trailing_passes =
+            is_pass_node(n, grid_points) ? trailing_passes + 1 : 0;
+    }
+    passes = trailing_passes >= 2 ? 2 : trailing_passes;
+    if (passes >= 2)
+        game_is_over = 1;
+
     /* Read custom UI state into ctx, then strip from the tree so the
      * engine never re-emits them — UI re-injects fresh values on save. */
     if (ctx) {
-        char *val;
         if (sgfGetCharProperty(sgftree.root, "XC", &val))
             sscanf(val, "%d,%d", &ctx->cursor_x, &ctx->cursor_y);
         if (sgfGetCharProperty(sgftree.root, "XZ", &val))
             ctx->zoomed = atoi(val);
         if (sgfGetCharProperty(sgftree.root, "XV", &val))
             sscanf(val, "%d,%d", &ctx->viewport_x, &ctx->viewport_y);
+        if (sgfGetCharProperty(sgftree.root, "XP", &val))
+            ctx->two_player = atoi(val);
     }
     remove_property(sgftree.root, "XC");
     remove_property(sgftree.root, "XZ");
     remove_property(sgftree.root, "XV");
+    remove_property(sgftree.root, "XL");
+    remove_property(sgftree.root, "XP");
 
     return 1;
 }
@@ -524,8 +573,6 @@ esp_gnugo_init_board_state(engine_context_t *ctx, bool player_is_white,
 /* ------------------------------------------------------------------ *
  *  Public API                                                         *
  * ------------------------------------------------------------------ */
-
-static int restart_handicap = 0;
 
 static esp_gnugo_state_t
 esp_gnugo_start(engine_context_t *ctx, bool *player_is_white_)
