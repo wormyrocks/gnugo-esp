@@ -270,6 +270,32 @@ esp_gnugo_update_board_state(engine_context_t *ctx)
             }
             free(dresp);
 
+            /* Mark territory on empty points so the endgame screen can
+             * show where the score comes from. Must run after the dead
+             * marking above: dead stones' points are reported as the
+             * captor's territory but stay rendered as dead stones. */
+            static const struct { const char *cmd; uint8_t mark; } terr[] = {
+                { "final_status_list white_territory\n", GRID_TERR_WHITE },
+                { "final_status_list black_territory\n", GRID_TERR_BLACK },
+            };
+            for (size_t t = 0; t < 2; t++) {
+                char *tresp = gtp_send(terr[t].cmd);
+                if (tresp && tresp[0] == '=') {
+                    char *p = tresp + 1;
+                    char tok[16];
+                    int n;
+                    while (sscanf(p, " %15s%n", tok, &n) == 1) {
+                        int vi, vj;
+                        if (parse_gtp_vertex(tok, &vi, &vj)) {
+                            if (game_state.board[vj][vi] == GRID_EMPTY)
+                                game_state.board[vj][vi] = terr[t].mark;
+                        }
+                        p += n;
+                    }
+                }
+                free(tresp);
+            }
+
             char *sresp = gtp_send("final_score\n");
             game_state.score = gtp_parse_score(sresp);
             free(sresp);

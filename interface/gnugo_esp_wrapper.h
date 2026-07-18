@@ -9,6 +9,9 @@
 #define GRID_BLACK 2
 #define GRID_DEAD_WHITE 11
 #define GRID_DEAD_BLACK 12
+/* Endgame territory marks, published on empty points after scoring */
+#define GRID_TERR_WHITE 21
+#define GRID_TERR_BLACK 22
 
 #define YOUR_NAME "You"
 #define CPU_NAME "CPU"
